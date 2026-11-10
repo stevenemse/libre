@@ -43,7 +43,8 @@ seule la clé publiable est utilisée dans l'application, et la sécurité repos
 ## Base de données
 
 Le schéma complet est dans `supabase/migrations/0001_init.sql` : types, tables, index,
-politiques RLS, déclencheurs, vue `monthly_summary` et fonctions.
+politiques RLS, déclencheurs, vue `monthly_summary` et fonctions. `0003_needs_breakdown.sql`
+ajoute `profiles.needs_breakdown`, le détail des besoins saisi à l'inscription.
 
 ```bash
 npm run db:migrate          # schéma
@@ -69,8 +70,12 @@ revenu passif  = capital × 0,04 / 12
 
 ## Fonctionnalités livrées (MVP)
 
-- **Compte & onboarding** : e-mail + mot de passe, lien magique, onboarding en 5 étapes
-  avec premier calcul d'épargne.
+- **Compte & onboarding** : e-mail + mot de passe, lien magique, onboarding en 7 étapes.
+  Les besoins ne sont pas demandés en bloc : transport (par jour ou par mois) et alimentation
+  (montant par jour × jours par mois) sont calculés en direct, puis logement, factures et
+  autres besoins s'ajoutent. Le récapitulatif détaille chaque poste avant d'enregistrer
+  l'épargne estimée. Le détail est conservé dans `profiles.needs_breakdown` et affiché dans
+  les paramètres.
 - **Transactions** : revenus/dépenses, catégories besoin/envie, notes, récurrence
   hebdomadaire ou mensuelle générée par la base, filtres par mois et par type.
 - **Épargne** : épargne et taux du mois, objectif modifiable, coaching contextuel,
@@ -84,8 +89,9 @@ revenu passif  = capital × 0,04 / 12
   départ, courbe, scénarios enregistrés et comparaison A/B.
 - **Conseils** : 39 fiches Épargner/Investir/Protéger/Mentalité, recherche, filtres,
   marquer comme lu, favoris, conseil du jour contextuel.
-- **Paramètres** : profil, devise, objectif de taux, mois d'urgence, notifications,
-  export CSV/JSON, suppression complète du compte.
+- **Paramètres** : profil, devise, revenus et besoins courants (avec le détail de
+  l'estimation d'inscription), objectif de taux, mois d'urgence, notifications, export
+  CSV/JSON, suppression complète du compte.
 - **PWA** : installable, précache des assets, saisie de transactions hors-ligne avec file
   d'attente et synchronisation au retour du réseau.
 
@@ -137,7 +143,7 @@ Données réalistes sur cinq mois (compte de test, supprimable depuis Paramètre
 
 ```bash
 npx tsc --noEmit     # types
-npx vitest run       # 26 tests de calcul
+npx vitest run       # 31 tests de calcul
 npm run test:rls     # isolation RLS
 npm run build        # build de production
 ```

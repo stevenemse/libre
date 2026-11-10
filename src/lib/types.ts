@@ -5,6 +5,26 @@ export type Recurrence = 'none' | 'weekly' | 'monthly';
 export type TipCategory = 'Épargner' | 'Investir' | 'Protéger' | 'Mentalité';
 export type TipLevel = 'Débutant' | 'Intermédiaire' | 'Avancé';
 
+export type NeedBasis = 'day' | 'month';
+
+/** Un besoin récurrent saisi au jour ou au mois. */
+export interface RecurringNeed {
+  basis: NeedBasis;
+  unitAmount: number;
+  days: number;
+}
+
+/** Détail des besoins courants recueilli pendant l'onboarding. */
+export interface NeedsBreakdown {
+  transport: RecurringNeed;
+  food: RecurringNeed;
+  housing: {
+    rent: number;
+    bills: number;
+    other: number;
+  };
+}
+
 export interface Profile {
   id: string;
   first_name: string | null;
@@ -13,6 +33,7 @@ export interface Profile {
   life_goal: string | null;
   avg_income: number;
   avg_needs: number;
+  needs_breakdown: NeedsBreakdown | null;
   savings_rate_goal: number;
   emergency_months: number;
   onboarded: boolean;

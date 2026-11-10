@@ -9,8 +9,10 @@ import {
   monthsToFreedom,
   needsCovered,
   passiveIncome,
+  needsBreakdownTotal,
   pocketAmounts,
   projectCapital,
+  recurringNeedMonthly,
   savings,
   savingsRate,
 } from './calc';
@@ -174,6 +176,35 @@ describe('synthèse mensuelle', () => {
   it('utilise les moyennes d’onboarding sans transaction', () => {
     const summaries = monthlySummaries([], kinds, { income: 200_000, needs: 120_000 }, 1, new Date(2026, 9, 15));
     expect(summaries[0]).toMatchObject({ income: 200_000, needs: 120_000, savings: 80_000 });
+  });
+});
+
+describe('besoins détaillés', () => {
+  it('calcule un besoin au jour', () => {
+    expect(recurringNeedMonthly({ basis: 'day', unitAmount: 500, days: 22 })).toBe(11_000);
+  });
+
+  it('garde un montant mensuel tel quel', () => {
+    expect(recurringNeedMonthly({ basis: 'month', unitAmount: 40_000, days: 1 })).toBe(40_000);
+  });
+
+  it('ignore les valeurs négatives', () => {
+    expect(recurringNeedMonthly({ basis: 'day', unitAmount: -500, days: 22 })).toBe(0);
+    expect(recurringNeedMonthly(null)).toBe(0);
+  });
+
+  it('additionne transport, alimentation et logement', () => {
+    const total = needsBreakdownTotal({
+      transport: { basis: 'day', unitAmount: 500, days: 22 },
+      food: { basis: 'day', unitAmount: 3_000, days: 30 },
+      housing: { rent: 100_000, bills: 25_000, other: 15_000 },
+    });
+    expect(total).toBe(241_000);
+  });
+
+  it('renvoie 0 sans détail enregistré', () => {
+    expect(needsBreakdownTotal(null)).toBe(0);
+    expect(needsBreakdownTotal({} as never)).toBe(0);
   });
 });
 

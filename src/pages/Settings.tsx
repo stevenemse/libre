@@ -9,8 +9,9 @@ import {
   useWorkspace,
 } from '../lib/queries';
 import { Alert, FieldError, SectionTitle, Sheet, Toggle, cn } from '../components/ui';
-import { currencyLabel, formatDate } from '../lib/format';
-import { num } from '../lib/calc';
+import { currencyLabel, formatDate, formatMoney } from '../lib/format';
+import { num, recurringNeedMonthly } from '../lib/calc';
+import type { NeedsBreakdown } from '../lib/types';
 
 const CURRENCIES = ['XAF', 'XOF', 'EUR', 'USD', 'NGN', 'MAD'];
 
@@ -24,6 +25,8 @@ export default function Settings() {
 
   const [firstName, setFirstName] = useState('');
   const [currency, setCurrency] = useState('XAF');
+  const [income, setIncome] = useState('');
+  const [needs, setNeeds] = useState('');
   const [rateGoal, setRateGoal] = useState(20);
   const [emergencyMonths, setEmergencyMonths] = useState(6);
   const [saved, setSaved] = useState(false);
@@ -36,6 +39,8 @@ export default function Settings() {
     if (!data) return;
     setFirstName(data.profile.first_name ?? '');
     setCurrency(data.profile.currency);
+    setIncome(data.profile.avg_income ? String(data.profile.avg_income) : '');
+    setNeeds(data.profile.avg_needs ? String(data.profile.avg_needs) : '');
     setRateGoal(num(data.profile.savings_rate_goal));
     setEmergencyMonths(data.profile.emergency_months);
   }, [data]);
@@ -43,6 +48,10 @@ export default function Settings() {
   if (!data) return null;
 
   const email = session?.user.email ?? '';
+  const breakdown = (data.profile.needs_breakdown ?? null) as Partial<NeedsBreakdown> | null;
+  const hasBreakdown = Boolean(breakdown?.transport || breakdown?.food || breakdown?.housing);
+  const parseAmount = (value: string) =>
+    Number.parseFloat(value.replace(/\s/g, '').replace(',', '.')) || 0;
 
   const download = (content: string, type: string, filename: string) => {
     const blob = new Blob([content], { type });
@@ -159,6 +168,78 @@ export default function Settings() {
           </div>
         </div>
 
+        <div className="mt-5 grid gap-4 sm:grid-cols-2">
+          <div>
+            <label htmlFor="settings-income" className="field-label">
+              Revenus mensuels moyens
+            </label>
+            <input
+              id="settings-income"
+              className="field"
+              inputMode="decimal"
+              value={income}
+              onChange={(event) => {
+                setIncome(event.target.value);
+                setSaved(false);
+              }}
+              placeholder="0"
+            />
+          </div>
+          <div>
+            <label htmlFor="settings-needs" className="field-label">
+              Besoins courants par mois
+            </label>
+            <input
+              id="settings-needs"
+              className="field"
+              inputMode="decimal"
+              value={needs}
+              onChange={(event) => {
+                setNeeds(event.target.value);
+                setSaved(false);
+              }}
+              placeholder="0"
+            />
+          </div>
+        </div>
+
+        {hasBreakdown ? (
+          <div className="mt-4 rounded-2xl bg-slate1/50 px-4 py-3">
+            <p className="text-[12px] font-medium uppercase tracking-wide text-mist">
+              Détail de ton estimation
+            </p>
+            <dl className="mt-2 space-y-1 text-[13px] text-mist">
+              {breakdown?.transport ? (
+                <div className="flex items-baseline justify-between gap-3">
+                  <dt>Transport</dt>
+                  <dd className="num">
+                    {formatMoney(recurringNeedMonthly(breakdown.transport), currency)}
+                  </dd>
+                </div>
+              ) : null}
+              {breakdown?.food ? (
+                <div className="flex items-baseline justify-between gap-3">
+                  <dt>Alimentation</dt>
+                  <dd className="num">{formatMoney(recurringNeedMonthly(breakdown.food), currency)}</dd>
+                </div>
+              ) : null}
+              {breakdown?.housing ? (
+                <div className="flex items-baseline justify-between gap-3">
+                  <dt>Logement et autres</dt>
+                  <dd className="num">
+                    {formatMoney(
+                      num(breakdown.housing.rent) +
+                        num(breakdown.housing.bills) +
+                        num(breakdown.housing.other),
+                      currency
+                    )}
+                  </dd>
+                </div>
+              ) : null}
+            </dl>
+          </div>
+        ) : null}
+
         <div className="mt-5">
           <div className="flex items-baseline justify-between gap-3">
             <label htmlFor="settings-rate" className="text-[14px] font-medium">
@@ -212,9 +293,15 @@ export default function Settings() {
             onClick={async () => {
               setError(null);
               try {
+                if (parseAmount(income) <= 0) {
+                  setError('Indique un revenu mensuel moyen, même approximatif.');
+                  return;
+                }
                 await saveProfile.mutateAsync({
                   first_name: firstName.trim(),
                   currency,
+                  avg_income: parseAmount(income),
+                  avg_needs: parseAmount(needs),
                   savings_rate_goal: rateGoal,
                   emergency_months: emergencyMonths,
                 });
@@ -245,7 +332,7 @@ export default function Settings() {
             onChange={(next) => saveNotifications.mutate({ daily_reminder: next })}
           />
           <Toggle
-            label="Rappel de versement d''épargne"
+            label="Rappel de versement d'épargne"
             description="Le jour de ta paie, mets ton épargne de côté."
             checked={data.notifications.payday_reminder}
             onChange={(next) => saveNotifications.mutate({ payday_reminder: next })}
@@ -277,8 +364,8 @@ export default function Settings() {
           </span>
         </SectionTitle>
         <p className="max-w-[65ch] text-[13px] leading-relaxed text-mist">
-          Libre est à toi : exporte ou supprime tout, quand tu veux. Aucune donnée n''est vendue et
-          aucune publicité n''est affichée.
+          Libre est à toi : exporte ou supprime tout, quand tu veux. Aucune donnée n'est vendue et
+          aucune publicité n'est affichée.
         </p>
 
         <div className="mt-4 flex flex-wrap gap-2">
@@ -326,7 +413,7 @@ export default function Settings() {
       </section>
 
       <p className="text-[12px] leading-relaxed text-mist">
-        Libre est un outil pédagogique de suivi et de simulation. Il ne détient pas d''argent, ne
+        Libre est un outil pédagogique de suivi et de simulation. Il ne détient pas d'argent, ne
         réalise aucune transaction et ne délivre pas de conseil en investissement réglementé.
       </p>
 

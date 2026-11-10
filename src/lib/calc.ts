@@ -1,4 +1,10 @@
-import type { Allocation, MonthSummary, Transaction } from './types';
+import type {
+  Allocation,
+  MonthSummary,
+  NeedsBreakdown,
+  RecurringNeed,
+  Transaction,
+} from './types';
 
 export const num = (value: unknown): number => {
   const parsed = typeof value === 'string' ? Number.parseFloat(value) : Number(value);
@@ -16,6 +22,27 @@ export function savings(revenue: number, needs: number): number {
 export function savingsRate(revenue: number, needs: number): number {
   if (revenue <= 0) return 0;
   return savings(revenue, needs) / revenue;
+}
+
+/** Besoin récurrent mensuel = montant × jours par mois, ou montant mensuel direct. */
+export function recurringNeedMonthly(need: RecurringNeed | null | undefined): number {
+  if (!need) return 0;
+  const amount = Math.max(0, num(need.unitAmount));
+  if (need.basis === 'month') return amount;
+  return amount * Math.max(0, num(need.days));
+}
+
+/** Total des besoins courants à partir du détail saisi (transport, alimentation, logement). */
+export function needsBreakdownTotal(breakdown: NeedsBreakdown | null | undefined): number {
+  if (!breakdown) return 0;
+  const housing = breakdown.housing;
+  return (
+    recurringNeedMonthly(breakdown.transport) +
+    recurringNeedMonthly(breakdown.food) +
+    Math.max(0, num(housing?.rent)) +
+    Math.max(0, num(housing?.bills)) +
+    Math.max(0, num(housing?.other))
+  );
 }
 
 /** Versement par poche = épargne × pourcentage / 100. */
