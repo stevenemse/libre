@@ -5,14 +5,15 @@ import { useTour } from '../components/AppShell';
 import { useAuth } from '../lib/auth';
 import {
   useDeleteAccount,
+  useSaveEmergency,
   useSaveNotifications,
   useSaveProfile,
   useSavePushSubscription,
   useWorkspace,
 } from '../lib/queries';
 import { pushConfigured, subscribeToPush } from '../lib/push';
-import { Alert, FieldError, SectionTitle, Sheet, Toggle, cn } from '../components/ui';
-import { currencyLabel, formatDate, formatMoney } from '../lib/format';
+import { Alert, FieldError, ProgressBar, SectionTitle, Sheet, Toggle, cn } from '../components/ui';
+import { currencyLabel, formatAmount, formatDate, formatMoney } from '../lib/format';
 import { num, recurringNeedMonthly } from '../lib/calc';
 import type { NeedsBreakdown } from '../lib/types';
 
@@ -22,6 +23,7 @@ export default function Settings() {
   const { userId, session, signOut } = useAuth();
   const { data } = useWorkspace(userId);
   const saveProfile = useSaveProfile(userId);
+  const saveEmergency = useSaveEmergency(userId);
   const saveNotifications = useSaveNotifications(userId);
   const savePush = useSavePushSubscription(userId);
   const deleteAccount = useDeleteAccount();
@@ -34,6 +36,7 @@ export default function Settings() {
   const [needs, setNeeds] = useState('');
   const [rateGoal, setRateGoal] = useState(20);
   const [emergencyMonths, setEmergencyMonths] = useState(6);
+  const [emergencyAmount, setEmergencyAmount] = useState('');
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -49,6 +52,7 @@ export default function Settings() {
     setNeeds(data.profile.avg_needs ? String(data.profile.avg_needs) : '');
     setRateGoal(num(data.profile.savings_rate_goal));
     setEmergencyMonths(data.profile.emergency_months);
+    setEmergencyAmount(String(num(data.emergency.amount_saved)));
   }, [data]);
 
   if (!data) return null;
@@ -294,6 +298,75 @@ export default function Settings() {
           />
         </div>
 
+        <div className="mt-5">
+          <label htmlFor="settings-emergency-amount" className="field-label">
+            Montant déjà constitué dans le fonds d'urgence
+          </label>
+          <div className="relative">
+            <input
+              id="settings-emergency-amount"
+              className="field pr-20"
+              inputMode="decimal"
+              value={emergencyAmount}
+              onChange={(event) => {
+                setEmergencyAmount(event.target.value);
+                setSaved(false);
+              }}
+              placeholder="0"
+            />
+            <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-[12px] text-mist">
+              {currencyLabel(currency)}
+            </span>
+          </div>
+        </div>
+
+        {(() => {
+          const monthlyNeeds = parseAmount(needs) > 0 ? parseAmount(needs) : num(data.profile.avg_needs);
+          const target = monthlyNeeds * emergencyMonths;
+          const savedAmt = Math.max(
+            parseAmount(emergencyAmount),
+            data.goals
+              .filter((goal) => goal.pocket === 'protection' || /urgence/i.test(goal.name))
+              .reduce((sum, goal) => sum + num(goal.current_amount), 0)
+          );
+          const progress = target > 0 ? Math.min(1, savedAmt / target) : 0;
+          const monthsCovered = monthlyNeeds > 0 ? savedAmt / monthlyNeeds : 0;
+          let status = 'À constituer';
+          let tone = 'text-mist';
+          if (target <= 0) {
+            status = 'Renseigne tes besoins pour calculer la cible.';
+          } else if (savedAmt >= target) {
+            status = `Fonds complet — ${monthsCovered.toFixed(1)} mois de besoins couverts. Tu peux passer à l'étape suivante.`;
+            tone = 'text-accent-text';
+          } else if (progress >= 0.5) {
+            status = `En bonne voie — encore ${formatAmount(target - savedAmt, currency)} à constituer.`;
+            tone = 'text-ink';
+          } else if (progress >= 0.25) {
+            status = `Insuffisant — ${monthsCovered.toFixed(1)} mois couverts, vise ${emergencyMonths}.`;
+            tone = 'text-coral-text';
+          } else {
+            status = `À constituer — commence petit mais régulier (${monthsCovered.toFixed(1)} mois couverts).`;
+            tone = 'text-coral-text';
+          }
+          return (
+            <div className="mt-4 rounded-2xl bg-slate1/50 px-4 py-3">
+              <div className="flex items-baseline justify-between gap-3">
+                <p className="text-[12px] font-medium uppercase tracking-wide text-mist">
+                  État du fonds
+                </p>
+                <p className={`text-[12px] font-semibold ${tone}`}>{status}</p>
+              </div>
+              <ProgressBar value={progress} height={6} />
+              <div className="mt-2 flex justify-between text-[12px] text-mist">
+                <span>
+                  {formatAmount(savedAmt, currency)} / {formatAmount(target, currency)}
+                </span>
+                <span>{Math.round(progress * 100)} %</span>
+              </div>
+            </div>
+          );
+        })()}
+
         <FieldError>{error}</FieldError>
 
         <div className="mt-5 flex items-center gap-3">
@@ -315,6 +388,7 @@ export default function Settings() {
                   savings_rate_goal: rateGoal,
                   emergency_months: emergencyMonths,
                 });
+                await saveEmergency.mutateAsync(Math.max(0, parseAmount(emergencyAmount)));
                 setSaved(true);
               } catch (err) {
                 setError(err instanceof Error ? err.message : 'Enregistrement impossible.');
