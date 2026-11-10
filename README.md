@@ -35,7 +35,6 @@ Variables attendues :
 | --- | --- | --- |
 | `VITE_SUPABASE_URL` | client | URL du projet Supabase |
 | `VITE_SUPABASE_PUBLISHABLE_KEY` | client | clé publiable (aucun secret) |
-| `VITE_APP_URL` | client | origine locale / de production |
 | `DATABASE_URL` | serveur | connexion Postgres pour les migrations |
 | `SUPABASE_SECRET_KEY` | serveur | scripts d'administration et tests RLS |
 | `VITE_VAPID_PUBLIC_KEY` | client | clé publique Web Push (facultative en local) |
@@ -46,6 +45,22 @@ Secrets de la fonction `notify` (à poser dans Supabase, jamais dans `.env` vers
 
 `.env` est ignoré par Git. **La clé secrète ne doit jamais être exposée au client** :
 seule la clé publiable est utilisée dans l'application, et la sécurité repose sur la RLS.
+
+## Déploiement
+
+`npm run build` produit un SPA statique dans `dist/`. Le fichier `vercel.json` fournit la
+réécriture vers `index.html` (sans elle, `/liberte` renvoie une 404 au rafraîchissement) et les
+en-têtes de cache du service worker et des assets.
+
+Trois variables `VITE_*` sont à poser dans Vercel (voir le tableau ci-dessus) :
+`VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, et `VITE_VAPID_PUBLIC_KEY` si tu actives
+le push. `DATABASE_URL` et `SUPABASE_SECRET_KEY` restent locales, jamais chez l'hébergeur. Les
+valeurs étant insérées au moment du build, toute modification exige un nouveau déploiement.
+
+Pense à autoriser le domaine de production dans Supabase (Site URL + Redirect URLs), sinon les
+liens e-mail renvoient vers `localhost`.
+
+Procédure détaillée et check-list de vérification : [`docs/DEPLOIEMENT.md`](docs/DEPLOIEMENT.md).
 
 ## Base de données
 
