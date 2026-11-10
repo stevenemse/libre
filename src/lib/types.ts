@@ -39,6 +39,7 @@ export interface Profile {
   emergency_months: number;
   onboarded: boolean;
   tour_done: boolean;
+  is_admin: boolean;
   created_at: string;
 }
 
@@ -210,4 +211,44 @@ export interface MonthSummary {
   needs: number;
   wants: number;
   savings: number;
+}
+
+/** Agrégats du panel administrateur (aucune donnée financière individuelle). */
+export interface AdminOverview {
+  accounts: number;
+  onboarded: number;
+  admins: number;
+  new7: number;
+  new30: number;
+  active30: number;
+  confirmed: number;
+  transactions: number;
+  transactions30: number;
+  assets: number;
+  pushDevices: number;
+  maintenance: boolean;
+}
+
+export interface AdminAccount {
+  id: string;
+  email: string | null;
+  first_name: string | null;
+  currency: string;
+  onboarded: boolean;
+  is_admin: boolean;
+  email_confirmed: boolean;
+  created_at: string;
+  transactions: number;
+  last_activity: string | null;
+}
+
+export interface AdminHealth {
+  profilesWithoutAllocation: number;
+  profilesWithoutEmergencyFund: number;
+  profilesWithoutNotifications: number;
+  profilesNotOnboarded: number;
+  transactionsWithoutCategory: number;
+  orphanTransactions: number;
+  tipsPublished: number;
+  challenges: number;
 }

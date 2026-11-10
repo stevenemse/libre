@@ -72,6 +72,25 @@ des défis, les réglages de rappels et la table `push_subscriptions` (RLS inclu
 `0005_guided_tour.sql` ajoute `profiles.tour_done`, qui empêche la visite guidée de se
 rouvrir à chaque connexion.
 
+## Panel administrateur
+
+[`/admin`](src/pages/Admin.tsx) donne une vue d'ensemble de l'opérateur : comptes inscrits,
+activité récente, contrôle d'intégrité de la base, volumes et mode maintenance. Le rôle est
+porté par `profiles.is_admin` (`supabase/migrations/0006_admin.sql`) et vérifié **en base** par
+chaque fonction : `admin_overview`, `admin_accounts`, `admin_db_health` et
+`admin_set_maintenance` refusent tout appelant qui n'est pas administrateur, et un client ne
+peut pas s'attribuer le rôle (un trigger annule la modification).
+
+Aucune donnée financière individuelle n'est exposée : seulement l'e-mail, le prénom, la date
+d'inscription, le nombre de transactions et la dernière activité.
+
+```bash
+node scripts/set-admin.mjs toi@exemple.com   # nomme un opérateur (DATABASE_URL local)
+```
+
+Le mode maintenance affiche un bandeau à tous les utilisateurs sans rien supprimer ; il
+s'active depuis `/admin`.
+
 ```bash
 npm run db:migrate          # schéma
 npm run db:seed             # schéma + 39 conseils et 3 défis

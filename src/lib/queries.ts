@@ -3,6 +3,9 @@ import { useEffect, useState } from 'react';
 import { supabase } from './supabase';
 import { flushPendingTransactions, pendingCount, queueTransaction, isOnline } from './offline';
 import type {
+  AdminAccount,
+  AdminHealth,
+  AdminOverview,
   Allocation,
   Asset,
   Category,
@@ -507,4 +510,63 @@ export function useOnlineStatus() {
   }, [client]);
 
   return { online, pending };
+}
+
+/* ------------------------------------------------------------ Administrateur */
+
+/** Vue d'ensemble, comptes et contrôle d'intégrité — réservé à l'opérateur. */
+export function useAdminPanel(enabled: boolean) {
+  return useQuery({
+    queryKey: ['admin-panel'],
+    enabled,
+    staleTime: 15_000,
+    queryFn: async () => {
+      const [overview, accounts, health] = await Promise.all([
+        supabase.rpc('admin_overview'),
+        supabase.rpc('admin_accounts', { limit_n: 200 }),
+        supabase.rpc('admin_db_health'),
+      ]);
+
+      for (const result of [overview, accounts, health]) {
+        if (result.error) throw new Error(result.error.message);
+      }
+
+      return {
+        overview: overview.data as unknown as AdminOverview,
+        accounts: (accounts.data ?? []) as AdminAccount[],
+        health: health.data as unknown as AdminHealth,
+      };
+    },
+  });
+}
+
+/** Active ou coupe le mode maintenance affiché aux utilisateurs. */
+export function useSetMaintenance() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ active, message }: { active: boolean; message: string }) => {
+      const { error } = await supabase.rpc('admin_set_maintenance', {
+        active,
+        message,
+      });
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => {
+      client.invalidateQueries({ queryKey: ['admin-panel'] });
+      client.invalidateQueries({ queryKey: ['maintenance'] });
+    },
+  });
+}
+
+/** État du mode maintenance, lisible par tout utilisateur connecté. */
+export function useMaintenance() {
+  return useQuery({
+    queryKey: ['maintenance'],
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('maintenance_active');
+      if (error) return false;
+      return Boolean(data);
+    },
+  });
 }

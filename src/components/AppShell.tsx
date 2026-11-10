@@ -7,12 +7,14 @@ import {
   PiggyBank,
   Plus,
   Settings,
+  ShieldCheck,
   TrendingUp,
   WifiOff,
+  Wrench,
 } from 'lucide-react';
 import { Logo, Avatar, cn } from './ui';
 import { useAuth } from '../lib/auth';
-import { useOnlineStatus, useSaveProfile, useWorkspace } from '../lib/queries';
+import { useMaintenance, useOnlineStatus, useSaveProfile, useWorkspace } from '../lib/queries';
 import { initials } from '../lib/format';
 import { TransactionSheet } from './TransactionSheet';
 import { Tour } from './Tour';
@@ -52,6 +54,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { userId, session } = useAuth();
   const { data: workspace } = useWorkspace(userId);
   const { online, pending } = useOnlineStatus();
+  const { data: maintenance } = useMaintenance();
   const location = useLocation();
   const [sheetOpen, setSheetOpen] = useState(false);
   const [sheetType, setSheetType] = useState<TxType>('expense');
@@ -126,6 +129,15 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <Plus size={16} strokeWidth={2} aria-hidden="true" />
                 Ajouter
               </button>
+              {workspace?.profile.is_admin ? (
+                <NavLink
+                  to="/admin"
+                  className="flex h-10 w-10 items-center justify-center rounded-full text-mist transition-colors hover:bg-white/5 hover:text-snow"
+                  aria-label="Administration"
+                >
+                  <ShieldCheck size={18} strokeWidth={1.75} />
+                </NavLink>
+              ) : null}
               <NavLink
                 to="/parametres"
                 className="flex h-10 w-10 items-center justify-center rounded-full text-mist transition-colors hover:bg-white/5 hover:text-snow"
@@ -139,6 +151,16 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
           </div>
         </header>
+
+        {maintenance ? (
+          <div className="border-b border-white/5 bg-amber/10">
+            <div className="container-app flex items-center gap-2 py-2 text-[13px] text-amber">
+              <Wrench size={14} strokeWidth={1.75} aria-hidden="true" />
+              Libre est en maintenance. Tes données restent en sécurité, le temps que tout revienne
+              à la normale.
+            </div>
+          </div>
+        ) : null}
 
         {!online || pending > 0 ? (
           <div className="border-b border-white/5 bg-slate1/70">

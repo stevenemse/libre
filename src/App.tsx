@@ -11,6 +11,7 @@ import Invest from './pages/Invest';
 import Freedom from './pages/Freedom';
 import Tips from './pages/Tips';
 import Settings from './pages/Settings';
+import Admin from './pages/Admin';
 
 function Splash({ label = 'On prépare ton espace…' }: { label?: string }) {
   return (
@@ -58,7 +59,12 @@ function Protected() {
     );
   }
 
-  if (data && !data.profile.onboarded && location.pathname !== '/bienvenue') {
+  if (
+    data &&
+    !data.profile.onboarded &&
+    location.pathname !== '/bienvenue' &&
+    !(location.pathname === '/admin' && data.profile.is_admin)
+  ) {
     return <Navigate to="/bienvenue" replace />;
   }
 
@@ -98,6 +104,7 @@ export default function App() {
           <Route path="/liberte" element={<Freedom />} />
           <Route path="/conseils" element={<Tips />} />
           <Route path="/parametres" element={<Settings />} />
+          <Route path="/admin" element={<Admin />} />
         </Route>
         <Route path="*" element={<Root />} />
       </Routes>
