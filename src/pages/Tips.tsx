@@ -88,7 +88,7 @@ export default function Tips() {
         </p>
       </header>
 
-      <section>
+      <section data-tour="challenges">
         <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
           <h2 className="text-[22px]">Défis</h2>
           <p className="text-[12px] text-mist">Un défi à la fois, sur quelques jours.</p>

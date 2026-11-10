@@ -230,7 +230,7 @@ export default function Freedom() {
       </header>
 
       <div className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
-        <section className="card p-5 sm:p-6">
+        <section data-tour="simulator" className="card p-5 sm:p-6">
           <div className="space-y-5">
             <div>
               <div className="flex items-baseline justify-between">

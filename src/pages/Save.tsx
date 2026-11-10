@@ -339,7 +339,7 @@ export default function Save() {
         </section>
       </div>
 
-      <section>
+      <section data-tour="goals">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-[22px]">Objectifs</h2>
           <button

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, Download, LogOut, Trash2, UserRound } from 'lucide-react';
+import { Bell, Compass, Download, LogOut, Trash2, UserRound } from 'lucide-react';
+import { useTour } from '../components/AppShell';
 import { useAuth } from '../lib/auth';
 import {
   useDeleteAccount,
@@ -24,6 +25,7 @@ export default function Settings() {
   const saveNotifications = useSaveNotifications(userId);
   const savePush = useSavePushSubscription(userId);
   const deleteAccount = useDeleteAccount();
+  const { start: startTour } = useTour();
   const navigate = useNavigate();
 
   const [firstName, setFirstName] = useState('');
@@ -325,7 +327,7 @@ export default function Settings() {
         </div>
       </section>
 
-      <section className="card p-5 sm:p-6">
+      <section data-tour="notifications" className="card p-5 sm:p-6">
         <SectionTitle>
           <span className="inline-flex items-center gap-2">
             <Bell size={18} strokeWidth={1.75} /> Notifications
@@ -403,6 +405,21 @@ export default function Settings() {
             ? 'Les rappels passent par le navigateur et par e-mail quand ils sont actifs. Tu peux les couper à tout moment.'
             : 'Les rappels navigateur et e-mail nécessitent la configuration serveur (clé VAPID et fonction notify). Tant qu’elle manque, les réglages sont enregistrés mais rien n’est envoyé.'}
         </p>
+      </section>
+
+      <section className="card p-5 sm:p-6">
+        <SectionTitle>
+          <span className="inline-flex items-center gap-2">
+            <Compass size={18} strokeWidth={1.75} /> Guide de démarrage
+          </span>
+        </SectionTitle>
+        <p className="max-w-[65ch] text-[13px] leading-relaxed text-mist">
+          La visite guidée présente chaque écran et ce qu'il sert à faire. Elle s'ouvre une seule
+          fois après l'inscription, puis reste disponible ici.
+        </p>
+        <button type="button" className="btn btn-secondary mt-4" onClick={() => startTour()}>
+          <Compass size={15} strokeWidth={1.75} /> Revoir la visite guidée
+        </button>
       </section>
 
       <section className="card p-5 sm:p-6">

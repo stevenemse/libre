@@ -190,6 +190,7 @@ export default function Home() {
 
       {/* Prochaine action utile : une seule à la fois, choisie par les chiffres */}
       <section
+        data-tour="next-action"
         className="card flex flex-wrap items-center gap-4 p-4 sm:p-5"
         aria-labelledby="next-action-title"
       >
@@ -211,7 +212,10 @@ export default function Home() {
 
       <div className="grid gap-4 lg:grid-cols-3">
         {/* Carte vedette */}
-        <section className="card-feature flex flex-col justify-between p-5 sm:p-7 lg:col-span-2">
+        <section
+          data-tour="month-card"
+          className="card-feature flex flex-col justify-between p-5 sm:p-7 lg:col-span-2"
+        >
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="text-[13px] font-semibold text-ink/60">
@@ -350,7 +354,7 @@ export default function Home() {
       </div>
 
       {/* Bilan de la semaine */}
-      <section className="card p-5 sm:p-6">
+      <section data-tour="weekly" className="card p-5 sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="label">Bilan de la semaine</p>

@@ -54,6 +54,8 @@ politiques RLS, déclencheurs, vue `monthly_summary` et fonctions. `0003_needs_b
 ajoute `profiles.needs_breakdown`, le détail des besoins saisi à l'inscription.
 `0004_v1_1.sql` ajoute les revenus qualifiés (`income_kind`), les objectifs pilotés, le suivi
 des défis, les réglages de rappels et la table `push_subscriptions` (RLS incluse).
+`0005_guided_tour.sql` ajoute `profiles.tour_done`, qui empêche la visite guidée de se
+rouvrir à chaque connexion.
 
 ```bash
 npm run db:migrate          # schéma
@@ -114,6 +116,11 @@ revenu passif  = capital × 0,04 / 12
 - **Notifications** : abonnement Web Push depuis les paramètres (service worker), stocké dans
   `push_subscriptions`. L'envoi serveur est écrit mais pas déployé : voir « Notifications
   serveur » ci-dessous.
+- **Visite guidée** : à la première ouverture après l'inscription, un guide de 11 étapes
+  traverse l'app écran par écran (halo sur l'élément expliqué, carte, navigation clavier).
+  Il s'adapte au PC (carte près de l'élément) et au mobile (carte au-dessus de la barre du
+  bas), se saute, et se relance depuis les paramètres. L'état est stocké dans
+  `profiles.tour_done`.
 - **Compte** : inscription réservée aux **18 ans et plus**, consentement explicite sur les
   données financières.
 - **PWA** : installable, précache des assets, saisie de transactions hors-ligne avec file
@@ -123,8 +130,8 @@ revenu passif  = capital × 0,04 / 12
 
 ```
 src/
-  components/    AppShell, TransactionSheet, bibliothèque UI
-  lib/           auth, queries, calc, format, offline, icons, supabase
+  components/    AppShell, TransactionSheet, Tour, bibliothèque UI
+  lib/           auth, queries, calc, format, offline, icons, push, tourSteps, supabase
   pages/         Auth, Onboarding, Home, Save, Invest, Freedom, Tips, Settings
 supabase/
   migrations/    schéma + RLS
@@ -188,7 +195,7 @@ enregistrés, mais rien n'est envoyé.
 - **Import SMS / bancaire** : hors périmètre par décision. L'app ne fonctionne qu'avec les
   chiffres saisis, et ne détient ni ne déplace aucun fonds.
 - **Pays et devises** : la devise est modifiable, mais la table `countries`, les formats
-  localisés et les contenus par marché restent à faire (migration `0005` du cahier
+  localisés et les contenus par marché restent à faire (migration `0006` du cahier
 des charges).
 - Le mode clair et l'anglais ne sont pas encore activés.
 

@@ -38,6 +38,7 @@ export interface Profile {
   savings_rate_goal: number;
   emergency_months: number;
   onboarded: boolean;
+  tour_done: boolean;
   created_at: string;
 }
 

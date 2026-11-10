@@ -12,9 +12,11 @@ import {
 } from 'lucide-react';
 import { Logo, Avatar, cn } from './ui';
 import { useAuth } from '../lib/auth';
-import { useOnlineStatus, useWorkspace } from '../lib/queries';
+import { useOnlineStatus, useSaveProfile, useWorkspace } from '../lib/queries';
 import { initials } from '../lib/format';
 import { TransactionSheet } from './TransactionSheet';
+import { Tour } from './Tour';
+import { TOUR_STEPS } from '../lib/tourSteps';
 import type { TxType } from '../lib/types';
 
 const NAV = [
@@ -37,6 +39,15 @@ export function useTxSheet(): TxSheetValue {
   return context;
 }
 
+const TourContext = createContext<{ start: () => void } | null>(null);
+
+/** Relance la visite guidée depuis n'importe quel écran. */
+export function useTour(): { start: () => void } {
+  const context = useContext(TourContext);
+  if (!context) throw new Error('useTour doit être utilisé dans AppShell');
+  return context;
+}
+
 export function AppShell({ children }: { children: ReactNode }) {
   const { userId, session } = useAuth();
   const { data: workspace } = useWorkspace(userId);
@@ -44,10 +55,34 @@ export function AppShell({ children }: { children: ReactNode }) {
   const location = useLocation();
   const [sheetOpen, setSheetOpen] = useState(false);
   const [sheetType, setSheetType] = useState<TxType>('expense');
+  const [tourOpen, setTourOpen] = useState(false);
+  const [tourPrompted, setTourPrompted] = useState(false);
+  const saveProfile = useSaveProfile(userId);
 
   const openSheet = useCallback((type: TxType = 'expense') => {
     setSheetType(type);
     setSheetOpen(true);
+  }, []);
+
+  // Le guide s'ouvre une seule fois, juste après l'onboarding.
+  useEffect(() => {
+    if (tourPrompted || !workspace) return;
+    if (workspace.profile.onboarded && workspace.profile.tour_done === false) {
+      setTourPrompted(true);
+      setTourOpen(true);
+    }
+  }, [workspace, tourPrompted]);
+
+  const closeTour = useCallback(() => {
+    setTourOpen(false);
+    if (workspace && !workspace.profile.tour_done) {
+      saveProfile.mutate({ tour_done: true });
+    }
+  }, [workspace, saveProfile]);
+
+  const startTour = useCallback(() => {
+    setTourPrompted(true);
+    setTourOpen(true);
   }, []);
 
   useEffect(() => {
@@ -60,6 +95,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <TxSheetContext.Provider value={{ open: openSheet }}>
+      <TourContext.Provider value={{ start: startTour }}>
       <div className="app-shell">
         <a href="#contenu" className="sr-only-focusable btn btn-primary fixed left-4 top-4 z-50">
           Aller au contenu
@@ -84,6 +120,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               <button
                 type="button"
                 onClick={() => openSheet('expense')}
+                data-tour="add"
                 className="btn btn-primary hidden h-10 px-4 text-sm sm:inline-flex"
               >
                 <Plus size={16} strokeWidth={2} aria-hidden="true" />
@@ -149,6 +186,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <button
           type="button"
           onClick={() => openSheet('expense')}
+          data-tour="add"
           className="fixed bottom-24 right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-accent text-ink shadow-[0_8px_28px_rgba(168,255,0,0.22)] transition-transform active:scale-95 lg:hidden"
           aria-label="Ajouter une transaction"
         >
@@ -162,7 +200,10 @@ export function AppShell({ children }: { children: ReactNode }) {
           currency={currency}
           initialType={sheetType}
         />
+
+        <Tour open={tourOpen} steps={TOUR_STEPS} onDone={closeTour} />
       </div>
+      </TourContext.Provider>
     </TxSheetContext.Provider>
   );
 }

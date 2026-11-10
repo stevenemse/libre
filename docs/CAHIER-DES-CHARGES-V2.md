@@ -50,6 +50,7 @@ la stratégie commerciale : il dit **quoi construire, dans quel ordre, avec quel
 | Registre d'assets + simulateur de liberté | Livré | `src/pages/Invest.tsx`, `Freedom.tsx` |
 | Conseils, défis jouables, progression | Livré | `src/pages/Tips.tsx` |
 | Objectifs : création, versement, progression | Livré V1.1 | `src/pages/Save.tsx` |
+| Visite guidée 11 étapes, PC et mobile | Livré V1.1 | `src/components/Tour.tsx`, `lib/tourSteps.ts` |
 | Bilan de la semaine + prochaine action utile | Livré V1.1 | `src/pages/Home.tsx`, `calc.ts` |
 | Revenus qualifiés (fixe / variable / ponctuel) + médiane | Livré V1.1 | `TransactionSheet.tsx`, `calc.ts` |
 | Réglages de rappels + abonnement Web Push navigateur | Livré V1.1 | `Settings.tsx`, `lib/push.ts`, `public/push-handler.js` |
@@ -81,6 +82,10 @@ Règle d'affichage (une seule action par écran, calculée, jamais générique) 
 Chaque action porte une **raison chiffrée** (« tes loisirs ont pris 18 % de plus que le mois
 dernier ») et un lien direct vers l'écran concerné. C'est ce qui distingue un coach d'un tableau.
 
+La **visite guidée** (implémentée) joue ce rôle à l'entrée : 11 étapes qui traversent les
+écrans, expliquent chaque bloc et s'arrêtent sur les gestes de base. Elle ne se montre qu'une
+fois, se relance depuis les paramètres, et respecte le clavier comme le tactile.
+
 ---
 
 ## 3. Architecture fonctionnelle cible
@@ -101,7 +106,9 @@ Les écrans actuels y sont re-rattachés, aucune route publique ne change.
 ## 4. Modèle de données : migrations à venir
 
 Chaque lot est une migration séparée, avec RLS écrite dans le même fichier et couverte par
-`scripts/test-rls.mjs`. Numérotation reprise à `0004` (0002 a été consommée par les récurrences).
+`scripts/test-rls.mjs`. La numérotation réelle a dépassé ce plan : `0004` = lot V1.1,
+`0005` = visite guidée. Les fichiers ci-dessous gardent leurs noms de travail et seront
+renumérotés au moment de leur implémentation.
 
 ### 4.1 `0004_international.sql` — pays, devises, préférences
 
