@@ -21,6 +21,7 @@ export default function Auth() {
   const [firstName, setFirstName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [adult, setAdult] = useState(false);
   const [busy, setBusy] = useState(false);
 
   if (session) return <Navigate to="/" replace />;
@@ -35,6 +36,7 @@ export default function Auth() {
         await signInWithMagicLink(email.trim());
         setNotice('Lien envoyé. Ouvre ta boîte mail et clique sur le lien pour entrer.');
       } else if (mode === 'signup') {
+        if (!adult) throw new Error('Libre est réservé aux personnes de 18 ans et plus.');
         if (!firstName.trim()) throw new Error('Dis-nous ton prénom.');
         if (password.length < 6) throw new Error('Choisis un mot de passe de 6 caractères minimum.');
         const { needsConfirm } = await signUp(email.trim(), password, firstName.trim());
@@ -178,6 +180,22 @@ export default function Auth() {
               </div>
             ) : null}
 
+            {mode === 'signup' ? (
+              <label className="flex items-start gap-3 rounded-2xl bg-slate2/60 p-3 text-[13px] leading-relaxed text-mist">
+                <input
+                  id="adult"
+                  type="checkbox"
+                  className="mt-0.5 h-4 w-4 shrink-0 accent-accent"
+                  checked={adult}
+                  onChange={(event) => setAdult(event.target.checked)}
+                />
+                <span>
+                  J'ai 18 ans ou plus et j'accepte que Libre conserve mes données pour calculer mon
+                  épargne. Libre est un outil pédagogique, pas un conseil financier personnalisé.
+                </span>
+              </label>
+            ) : null}
+
             {error ? <Alert tone="danger" title={error} /> : null}
             {notice ? <Alert tone="info" title={notice} /> : null}
 
@@ -207,9 +225,8 @@ export default function Auth() {
           </form>
 
           <p className="mt-6 text-[12px] leading-relaxed text-mist">
-            En continuant, tu acceptes que Libre conserve tes données pour calculer ton épargne. Libre
-            est un outil pédagogique, pas un conseil financier personnalisé. Tu peux exporter ou
-            supprimer tes données à tout moment.
+            Libre est réservé aux 18 ans et plus. Tu peux exporter ou supprimer tes données à tout
+            moment, et aucune donnée financière n'est vendue.
           </p>
 
           {!supabaseConfigured ? (

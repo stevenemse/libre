@@ -8,6 +8,7 @@ import type {
   Category,
   Challenge,
   EmergencyFund,
+  Goal,
   NotificationSettings,
   Profile,
   ProtectionItem,
@@ -33,6 +34,7 @@ async function loadWorkspace(userId: string): Promise<Workspace> {
     transactions,
     protection,
     assets,
+    goals,
     simulations,
     tips,
     progress,
@@ -52,6 +54,11 @@ async function loadWorkspace(userId: string): Promise<Workspace> {
       .limit(3000),
     supabase.from('protection_checklist').select('*').order('item_key'),
     supabase.from('assets').select('*').order('created_at', { ascending: false }),
+    supabase
+      .from('goals')
+      .select('*')
+      .eq('archived', false)
+      .order('created_at', { ascending: false }),
     supabase.from('simulations').select('*').order('created_at', { ascending: false }),
     supabase.from('tips').select('*').eq('published', true).order('category'),
     supabase.from('tip_progress').select('*').eq('user_id', userId),
@@ -68,6 +75,7 @@ async function loadWorkspace(userId: string): Promise<Workspace> {
     transactions,
     protection,
     assets,
+    goals,
     simulations,
     tips,
     progress,
@@ -107,6 +115,7 @@ async function loadWorkspace(userId: string): Promise<Workspace> {
     transactions: (transactions.data ?? []) as Transaction[],
     protection: (protection.data ?? []) as ProtectionItem[],
     assets: (assets.data ?? []) as Asset[],
+    goals: (goals.data ?? []) as Goal[],
     simulations: (simulations.data ?? []) as Simulation[],
     tips: (tips.data ?? []) as Tip[],
     progress: (progress.data ?? []) as TipProgress[],
@@ -118,6 +127,8 @@ async function loadWorkspace(userId: string): Promise<Workspace> {
       payday_reminder: true,
       budget_alert: true,
       monthly_summary: true,
+      weekly_review: true,
+      reminder_hour: 19,
       push_subscription: null,
     },
   };
@@ -148,6 +159,7 @@ export function useAddTransaction(userId: string | undefined) {
       note: string | null;
       occurred_on: string;
       recurrence: Transaction['recurrence'];
+      income_kind: Transaction['income_kind'];
     }) => {
       if (!userId) throw new Error('Session expirée');
       if (!isOnline()) {
@@ -342,6 +354,100 @@ export function useStartChallenge(userId: string | undefined) {
       if (error) throw new Error(error.message);
     },
     onSuccess: () => invalidate(userId),
+  });
+}
+
+export function useAddGoal(userId: string | undefined) {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: async (input: {
+      name: string;
+      target_amount: number;
+      target_date: string | null;
+      pocket: Goal['pocket'];
+      monthly_contribution: number;
+    }) => {
+      if (!userId) throw new Error('Session expirée');
+      const { error } = await supabase
+        .from('goals')
+        .insert({ ...input, user_id: userId, current_amount: 0 });
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => invalidate(userId),
+  });
+}
+
+export function useContributeGoal(userId: string | undefined) {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: async ({ id, amount }: { id: string; amount: number }) => {
+      if (!userId) throw new Error('Session expirée');
+      const { data: goal, error: readError } = await supabase
+        .from('goals')
+        .select('current_amount')
+        .eq('id', id)
+        .single();
+      if (readError) throw new Error(readError.message);
+      const next = Math.max(0, Number(goal?.current_amount ?? 0) + amount);
+      const { error } = await supabase.from('goals').update({ current_amount: next }).eq('id', id);
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => invalidate(userId),
+  });
+}
+
+export function useDeleteGoal(userId: string | undefined) {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('goals').delete().eq('id', id);
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => invalidate(userId),
+  });
+}
+
+export function useCompleteChallenge(userId: string | undefined) {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: async ({ id, done }: { id: string; done: boolean }) => {
+      const { error } = await supabase
+        .from('user_challenges')
+        .update({ completed: done, completed_at: done ? new Date().toISOString() : null })
+        .eq('id', id);
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => invalidate(userId),
+  });
+}
+
+export function useDeleteChallenge(userId: string | undefined) {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('user_challenges').delete().eq('id', id);
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => invalidate(userId),
+  });
+}
+
+/** Enregistre un abonnement Web Push (un par appareil). */
+export function useSavePushSubscription(userId: string | undefined) {
+  return useMutation({
+    mutationFn: async (subscription: PushSubscriptionJSON) => {
+      if (!userId) throw new Error('Session expirée');
+      const { error } = await supabase.from('push_subscriptions').upsert(
+        {
+          user_id: userId,
+          endpoint: subscription.endpoint,
+          subscription,
+          user_agent: navigator.userAgent.slice(0, 200),
+        },
+        { onConflict: 'endpoint' }
+      );
+      if (error) throw new Error(error.message);
+    },
   });
 }
 

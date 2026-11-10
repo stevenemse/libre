@@ -5,25 +5,35 @@ import {
   Pencil,
   Plus,
   Receipt,
+  Target,
   Trash2,
   Wallet,
 } from 'lucide-react';
 import { useAuth } from '../lib/auth';
-import { useDeleteTransaction, useWorkspace } from '../lib/queries';
+import {
+  useAddGoal,
+  useContributeGoal,
+  useDeleteGoal,
+  useDeleteTransaction,
+  useWorkspace,
+} from '../lib/queries';
 import { useTxSheet } from '../components/AppShell';
 import {
   Alert,
   CoachNote,
   EmptyState,
+  FieldError,
   IconCircle,
   ProgressBar,
   SectionTitle,
+  Sheet,
   cn,
 } from '../components/ui';
 import { currencyLabel, formatAmount, formatDate, formatPercent } from '../lib/format';
 import {
   coachMessage,
   currentMonthKey,
+  goalProgress,
   monthLabel,
   monthlySummaries,
   num,
@@ -32,7 +42,19 @@ import {
 } from '../lib/calc';
 import { categoryIcon } from '../lib/icons';
 import { TransactionSheet } from '../components/TransactionSheet';
-import type { Transaction, TxType } from '../lib/types';
+import type { Goal, Transaction, TxType } from '../lib/types';
+
+const POCKET_LABEL: Record<string, string> = {
+  subsistence: 'Subsistance',
+  assets: 'Assets',
+  protection: 'Protection',
+};
+
+const INCOME_KIND_LABEL: Record<string, string> = {
+  fixed: 'fixe',
+  variable: 'variable',
+  one_off: 'ponctuel',
+};
 
 function HistoryChart({
   data,
@@ -111,6 +133,18 @@ export default function Save() {
   const { data } = useWorkspace(userId);
   const { open: openTx } = useTxSheet();
   const deleteTransaction = useDeleteTransaction(userId);
+  const addGoal = useAddGoal(userId);
+  const contributeGoal = useContributeGoal(userId);
+  const deleteGoal = useDeleteGoal(userId);
+  const [goalOpen, setGoalOpen] = useState(false);
+  const [goalName, setGoalName] = useState('');
+  const [goalTarget, setGoalTarget] = useState('');
+  const [goalDate, setGoalDate] = useState('');
+  const [goalPocket, setGoalPocket] = useState<Goal['pocket']>('assets');
+  const [goalError, setGoalError] = useState<string | null>(null);
+  const [funding, setFunding] = useState<Goal | null>(null);
+  const [fundAmount, setFundAmount] = useState('');
+  const [fundError, setFundError] = useState<string | null>(null);
   const [month, setMonth] = useState(currentMonthKey());
   const [filter, setFilter] = useState<'all' | TxType>('all');
   const [editing, setEditing] = useState<Transaction | null>(null);
@@ -155,6 +189,57 @@ export default function Save() {
   );
   const overBudget = derived.selected.needs > derived.selected.income && derived.selected.income > 0;
   const months = [...derived.summaries].reverse();
+
+  const parseAmount = (value: string) =>
+    Number.parseFloat(value.replace(/\s/g, '').replace(',', '.')) || 0;
+
+  const submitGoal = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setGoalError(null);
+    const target = parseAmount(goalTarget);
+    if (!goalName.trim()) {
+      setGoalError('Donne un nom à ton objectif.');
+      return;
+    }
+    if (target <= 0) {
+      setGoalError('Indique un montant cible supérieur à zéro.');
+      return;
+    }
+    try {
+      await addGoal.mutateAsync({
+        name: goalName.trim(),
+        target_amount: target,
+        target_date: goalDate || null,
+        pocket: goalPocket,
+        monthly_contribution: 0,
+      });
+      setGoalOpen(false);
+      setGoalName('');
+      setGoalTarget('');
+      setGoalDate('');
+      setGoalPocket('assets');
+    } catch (err) {
+      setGoalError(err instanceof Error ? err.message : 'Enregistrement impossible.');
+    }
+  };
+
+  const submitFund = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setFundError(null);
+    const amount = parseAmount(fundAmount);
+    if (!funding) return;
+    if (amount <= 0) {
+      setFundError('Saisis un montant supérieur à zéro.');
+      return;
+    }
+    try {
+      await contributeGoal.mutateAsync({ id: funding.id, amount });
+      setFunding(null);
+      setFundAmount('');
+    } catch (err) {
+      setFundError(err instanceof Error ? err.message : 'Enregistrement impossible.');
+    }
+  };
 
   return (
     <div className="fade-up space-y-6">
@@ -254,6 +339,93 @@ export default function Save() {
         </section>
       </div>
 
+      <section>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-[22px]">Objectifs</h2>
+          <button
+            type="button"
+            className="btn btn-secondary h-10 text-[13px]"
+            onClick={() => setGoalOpen(true)}
+          >
+            <Plus size={15} strokeWidth={2} />
+            Nouvel objectif
+          </button>
+        </div>
+
+        {data.goals.length === 0 ? (
+          <EmptyState icon={Target} title="Aucun objectif pour l'instant">
+            Un fonds, un projet, une formation : un objectif chiffré donne une raison à ton épargne.
+          </EmptyState>
+        ) : (
+          <ul className="grid gap-3 sm:grid-cols-2">
+            {data.goals.map((goal) => {
+              const progress = goalProgress(num(goal.current_amount), num(goal.target_amount));
+              const remaining = Math.max(0, num(goal.target_amount) - num(goal.current_amount));
+              return (
+                <li key={goal.id} className="card p-4 sm:p-5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-[15px] font-semibold">{goal.name}</p>
+                      <p className="mt-0.5 text-[12px] text-mist">
+                        {goal.pocket ? POCKET_LABEL[goal.pocket] : 'Objectif libre'}
+                        {goal.target_date ? ` · ${formatDate(goal.target_date)}` : ''}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-mist transition-colors hover:bg-coral/10 hover:text-coral"
+                      aria-label={`Supprimer l'objectif ${goal.name}`}
+                      onClick={() => {
+                        if (window.confirm(`Supprimer l'objectif « ${goal.name} » ?`)) {
+                          deleteGoal.mutate(goal.id);
+                        }
+                      }}
+                    >
+                      <Trash2 size={15} strokeWidth={1.75} />
+                    </button>
+                  </div>
+
+                  <p className="num mt-3 text-[20px] font-semibold leading-none">
+                    {formatAmount(num(goal.current_amount), currency)}
+                    <span className="ml-1.5 text-[12px] font-medium text-mist">
+                      / {formatAmount(num(goal.target_amount), currency)}
+                    </span>
+                  </p>
+                  <div className="mt-3">
+                    <ProgressBar
+                      value={progress}
+                      height={8}
+                      ariaLabel={`Progression de l'objectif ${goal.name}`}
+                    />
+                  </div>
+                  <div className="mt-2 flex items-center justify-between text-[12px] text-mist">
+                    <span>{Math.round(progress * 100)} %</span>
+                    <span>
+                      {remaining > 0
+                        ? `Reste ${formatAmount(remaining, currency)}`
+                        : 'Objectif atteint'}
+                    </span>
+                  </div>
+
+                  <button
+                    type="button"
+                    className="btn btn-ghost mt-3 h-9 w-full text-[13px] text-accent"
+                    onClick={() => {
+                      setFunding(goal);
+                      setFundAmount('');
+                      setFundError(null);
+                    }}
+                  >
+                    <Plus size={14} strokeWidth={2} />
+                    Verser sur cet objectif
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
+
       <section className="card p-5 sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <SectionTitle>Histoire sur 12 mois</SectionTitle>
@@ -317,6 +489,9 @@ export default function Save() {
                         <ArrowUpRight size={12} aria-hidden="true" />
                       )}
                       {formatDate(tx.occurred_on)} · {category?.name ?? 'Sans catégorie'}
+                      {tx.type === 'income' && tx.income_kind
+                        ? ` · revenu ${INCOME_KIND_LABEL[tx.income_kind]}`
+                        : ''}
                       {tx.recurrence !== 'none' ? ' · récurrent' : ''}
                     </p>
                   </div>
@@ -364,6 +539,113 @@ export default function Save() {
       <p className="text-[12px] text-mist">
         Les transactions récurrentes sont générées automatiquement à leur échéance.
       </p>
+
+      <Sheet
+        open={goalOpen}
+        onClose={() => setGoalOpen(false)}
+        title="Nouvel objectif"
+        subtitle="Un montant, une date, et Libre suit ta progression."
+      >
+        <form onSubmit={submitGoal} className="space-y-4">
+          <div>
+            <label htmlFor="goal-name" className="field-label">
+              Nom de l'objectif
+            </label>
+            <input
+              id="goal-name"
+              className="field"
+              value={goalName}
+              onChange={(event) => setGoalName(event.target.value)}
+              placeholder="Ex. Fonds d'urgence"
+              maxLength={60}
+            />
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label htmlFor="goal-target" className="field-label">
+                Montant cible
+              </label>
+              <input
+                id="goal-target"
+                className="field"
+                inputMode="decimal"
+                value={goalTarget}
+                onChange={(event) => setGoalTarget(event.target.value)}
+                placeholder="0"
+              />
+            </div>
+            <div>
+              <label htmlFor="goal-date" className="field-label">
+                Date cible <span className="font-normal text-mist">(facultatif)</span>
+              </label>
+              <input
+                id="goal-date"
+                type="date"
+                className="field"
+                value={goalDate}
+                onChange={(event) => setGoalDate(event.target.value)}
+              />
+            </div>
+          </div>
+
+          <div>
+            <span className="field-label">Poche</span>
+            <div className="flex flex-wrap gap-2">
+              {([null, 'subsistence', 'assets', 'protection'] as Array<Goal['pocket']>).map(
+                (pocket) => (
+                  <button
+                    key={pocket ?? 'none'}
+                    type="button"
+                    className="pill"
+                    aria-pressed={goalPocket === pocket}
+                    onClick={() => setGoalPocket(pocket)}
+                  >
+                    {pocket ? POCKET_LABEL[pocket] : 'Libre'}
+                  </button>
+                )
+              )}
+            </div>
+          </div>
+
+          <FieldError>{goalError}</FieldError>
+
+          <button type="submit" className="btn btn-primary w-full" disabled={addGoal.isPending}>
+            {addGoal.isPending ? 'Création…' : "Créer l'objectif"}
+          </button>
+        </form>
+      </Sheet>
+
+      <Sheet
+        open={Boolean(funding)}
+        onClose={() => setFunding(null)}
+        title="Verser sur un objectif"
+        subtitle={funding?.name ?? undefined}
+      >
+        <form onSubmit={submitFund} className="space-y-4">
+          <div>
+            <label htmlFor="fund-amount" className="field-label">
+              Montant
+            </label>
+            <input
+              id="fund-amount"
+              className="field h-16 text-[24px] font-semibold"
+              inputMode="decimal"
+              value={fundAmount}
+              onChange={(event) => setFundAmount(event.target.value)}
+              placeholder="0"
+            />
+          </div>
+          <FieldError>{fundError}</FieldError>
+          <button
+            type="submit"
+            className="btn btn-primary w-full"
+            disabled={contributeGoal.isPending}
+          >
+            {contributeGoal.isPending ? 'Enregistrement…' : 'Ajouter à cet objectif'}
+          </button>
+        </form>
+      </Sheet>
 
       <TransactionSheet
         open={editingOpen}

@@ -1,9 +1,15 @@
 import { useMemo, useState } from 'react';
-import { BookOpen, Bookmark, Check, Search } from 'lucide-react';
+import { BookOpen, Bookmark, Check, Flame, Search } from 'lucide-react';
 import { useAuth } from '../lib/auth';
-import { useSaveTipProgress, useWorkspace } from '../lib/queries';
-import { EmptyState, Sheet, cn } from '../components/ui';
-import type { Tip, TipCategory } from '../lib/types';
+import {
+  useCompleteChallenge,
+  useStartChallenge,
+  useDeleteChallenge,
+  useSaveTipProgress,
+  useWorkspace,
+} from '../lib/queries';
+import { EmptyState, ProgressBar, Sheet, cn } from '../components/ui';
+import type { Challenge, Tip, TipCategory, UserChallenge } from '../lib/types';
 
 const CATEGORIES: Array<TipCategory | 'Tout'> = [
   'Tout',
@@ -19,6 +25,9 @@ export default function Tips() {
   const { userId } = useAuth();
   const { data } = useWorkspace(userId);
   const saveProgress = useSaveTipProgress(userId);
+  const startChallenge = useStartChallenge(userId);
+  const completeChallenge = useCompleteChallenge(userId);
+  const deleteChallenge = useDeleteChallenge(userId);
 
   const [category, setCategory] = useState<(typeof CATEGORIES)[number]>('Tout');
   const [level, setLevel] = useState<(typeof LEVELS)[number]>('Tous les niveaux');
@@ -48,6 +57,17 @@ export default function Tips() {
   const readCount = data.progress.filter((row) => row.read_at).length;
   const favoriteCount = data.progress.filter((row) => row.favorite).length;
 
+  const activeByChallenge = new Map<string, UserChallenge>();
+  for (const row of data.userChallenges) {
+    if (row.challenge_id) activeByChallenge.set(row.challenge_id, row);
+  }
+
+  const dayOf = (row: UserChallenge, challenge: Challenge) => {
+    const started = new Date(`${row.started_on}T00:00:00`);
+    const elapsed = Math.floor((Date.now() - started.getTime()) / 86_400_000) + 1;
+    return Math.max(1, Math.min(challenge.duration_days, elapsed));
+  };
+
   const openTipDetail = (tip: Tip) => {
     setOpenTip(tip);
     if (!progressMap.get(tip.id)?.read_at) {
@@ -67,6 +87,89 @@ export default function Tips() {
           {favoriteCount > 1 ? 's' : ''}
         </p>
       </header>
+
+      <section>
+        <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
+          <h2 className="text-[22px]">Défis</h2>
+          <p className="text-[12px] text-mist">Un défi à la fois, sur quelques jours.</p>
+        </div>
+
+        {data.challenges.length === 0 ? (
+          <EmptyState icon={Flame} title="Aucun défi disponible">
+            Les défis arriveront avec les prochaines mises à jour.
+          </EmptyState>
+        ) : (
+          <ul className="grid gap-3 sm:grid-cols-2">
+            {data.challenges.map((challenge) => {
+              const active = challenge.id ? activeByChallenge.get(challenge.id) : undefined;
+              const day = active ? dayOf(active, challenge) : 0;
+              return (
+                <li key={challenge.id} className="card flex flex-col p-4 sm:p-5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-[15px] font-semibold">{challenge.title}</p>
+                      <p className="mt-1 text-[12px] text-mist">
+                        {challenge.duration_days} jours
+                        {active?.completed ? ' · terminé' : active ? ` · jour ${day}` : ''}
+                      </p>
+                    </div>
+                    <Flame
+                      size={18}
+                      strokeWidth={1.75}
+                      className={active ? 'shrink-0 text-accent' : 'shrink-0 text-mist/60'}
+                      aria-hidden="true"
+                    />
+                  </div>
+
+                  {challenge.description ? (
+                    <p className="mt-2 line-clamp-2 text-[13px] leading-relaxed text-mist">
+                      {challenge.description}
+                    </p>
+                  ) : null}
+
+                  {active ? (
+                    <div className="mt-auto pt-4">
+                      <ProgressBar
+                        value={day / Math.max(1, challenge.duration_days)}
+                        height={8}
+                        ariaLabel={`Progression du défi ${challenge.title}`}
+                      />
+                      <div className="mt-3 flex gap-2">
+                        <button
+                          type="button"
+                          className="btn btn-secondary h-9 flex-1 text-[12px]"
+                          onClick={() =>
+                            completeChallenge.mutate({ id: active.id, done: !active.completed })
+                          }
+                        >
+                          {active.completed ? 'Reprendre' : 'Marquer terminé'}
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-ghost h-9 text-[12px] text-mist"
+                          onClick={() => deleteChallenge.mutate(active.id)}
+                          aria-label={`Abandonner le défi ${challenge.title}`}
+                        >
+                          Abandonner
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      className="btn btn-secondary mt-4 h-10 text-[13px]"
+                      disabled={startChallenge.isPending}
+                      onClick={() => startChallenge.mutate(challenge.id)}
+                    >
+                      Commencer ce défi
+                    </button>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
 
       <section className="card-paper overflow-hidden">
         <div className="border-b border-graphite/10 p-4 sm:p-5">

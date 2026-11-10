@@ -3,6 +3,10 @@ import {
   coachMessage,
   emergencyTarget,
   freedomCapital,
+  goalProgress,
+  incomeMedian,
+  nextAction,
+  weeklyReview,
   monthlySummaries,
   monthsToCoverNeeds,
   monthsToEmergencyFund,
@@ -17,6 +21,19 @@ import {
   savingsRate,
 } from './calc';
 import type { Allocation, Transaction } from './types';
+
+const tx = (patch: Partial<Transaction> & Pick<Transaction, 'occurred_on' | 'amount'>): Transaction => ({
+  id: Math.random().toString(36).slice(2),
+  user_id: 'u',
+  category_id: null,
+  type: 'expense',
+  note: null,
+  recurrence: 'none',
+  parent_tx_id: null,
+  income_kind: null,
+  created_at: '',
+  ...patch,
+});
 
 const allocation: Allocation = {
   user_id: 'u1',
@@ -145,15 +162,15 @@ describe('synthèse mensuelle', () => {
     const transactions: Transaction[] = [
       {
         id: '1', user_id: 'u', category_id: 'c-need', type: 'income', amount: 300_000,
-        occurred_on: '2026-10-02', note: null, recurrence: 'none', parent_tx_id: null, created_at: '',
+        occurred_on: '2026-10-02', note: null, recurrence: 'none', parent_tx_id: null, income_kind: null, created_at: '',
       },
       {
         id: '2', user_id: 'u', category_id: 'c-need', type: 'expense', amount: 100_000,
-        occurred_on: '2026-10-05', note: null, recurrence: 'none', parent_tx_id: null, created_at: '',
+        occurred_on: '2026-10-05', note: null, recurrence: 'none', parent_tx_id: null, income_kind: null, created_at: '',
       },
       {
         id: '3', user_id: 'u', category_id: 'c-want', type: 'expense', amount: 30_000,
-        occurred_on: '2026-10-09', note: null, recurrence: 'none', parent_tx_id: null, created_at: '',
+        occurred_on: '2026-10-09', note: null, recurrence: 'none', parent_tx_id: null, income_kind: null, created_at: '',
       },
     ];
     const summaries = monthlySummaries(
@@ -223,5 +240,146 @@ describe('message de coaching', () => {
 
   it('ne culpabilise pas quand il n’y a pas de revenus', () => {
     expect(coachMessage(0, 0, 0).tone).toBe('neutral');
+  });
+});
+
+describe('revenus irréguliers', () => {
+  it('prend la médiane des mois complets, pas le meilleur mois', () => {
+    const transactions = [
+      tx({ type: 'income', amount: 200_000, occurred_on: '2026-10-04' }),
+      tx({ type: 'income', amount: 100_000, occurred_on: '2026-09-04' }),
+      tx({ type: 'income', amount: 900_000, occurred_on: '2026-11-02' }), // mois en cours
+    ];
+    expect(incomeMedian(transactions, 3, new Date(2026, 10, 15))).toEqual({
+      median: 150_000,
+      months: 2,
+    });
+  });
+
+  it('ignore un mois sans revenu au lieu de le compter zéro', () => {
+    const transactions = [tx({ type: 'income', amount: 120_000, occurred_on: '2026-10-10' })];
+    expect(incomeMedian(transactions, 3, new Date(2026, 10, 15))).toEqual({
+      median: 120_000,
+      months: 1,
+    });
+  });
+
+  it('renvoie zéro sans revenu enregistré', () => {
+    expect(incomeMedian([], 3, new Date(2026, 10, 15))).toEqual({ median: 0, months: 0 });
+  });
+});
+
+describe('bilan hebdomadaire', () => {
+  const names = new Map([
+    ['c1', 'Transport'],
+    ['c2', 'Loisirs'],
+  ]);
+  const transactions = [
+    tx({ id: 'a', type: 'income', amount: 200_000, occurred_on: '2026-11-03' }),
+    tx({ id: 'b', category_id: 'c1', amount: 50_000, occurred_on: '2026-11-03' }),
+    tx({ id: 'c', category_id: 'c2', amount: 30_000, occurred_on: '2026-11-04' }),
+    tx({ id: 'd', type: 'income', amount: 100_000, occurred_on: '2026-10-28' }),
+    tx({ id: 'e', category_id: 'c1', amount: 80_000, occurred_on: '2026-10-29' }),
+  ];
+  const review = weeklyReview(transactions, names, new Date(2026, 10, 4, 12));
+
+  it('compare la semaine en cours à la précédente', () => {
+    expect(review.from).toBe('2026-11-02');
+    expect(review.to).toBe('2026-11-04');
+    expect(review.income).toBe(200_000);
+    expect(review.expenses).toBe(80_000);
+    expect(review.saved).toBe(120_000);
+    expect(review.previousSaved).toBe(20_000);
+    expect(review.change).toBe(100_000);
+  });
+
+  it('identifie la catégorie la plus lourde de la semaine', () => {
+    expect(review.topCategory).toEqual({ name: 'Transport', amount: 50_000 });
+  });
+
+  it('n’annonce aucune variation sans semaine précédente', () => {
+    const fresh = weeklyReview(
+      [tx({ type: 'income', amount: 10_000, occurred_on: '2026-11-03' })],
+      names,
+      new Date(2026, 10, 4, 12)
+    );
+    expect(fresh.change).toBeNull();
+  });
+});
+
+describe('prochaine action utile', () => {
+  const base = {
+    onboarded: true,
+    transactionCount: 12,
+    monthIncome: 250_000,
+    monthExpenses: 196_000,
+    savingsRate: 0.216,
+    goalRate: 0.2,
+    emergencySaved: 400_000,
+    emergencyTarget: 1_176_000,
+    coverage: 0.1,
+    activeGoals: 2,
+  };
+
+  it('demande de terminer l’onboarding avant tout', () => {
+    expect(nextAction({ ...base, onboarded: false }).key).toBe('onboarding');
+  });
+
+  it('propose la première saisie quand la base est vide', () => {
+    expect(nextAction({ ...base, transactionCount: 0 }).key).toBe('first-transaction');
+  });
+
+  it('signale un budget dépassé', () => {
+    expect(nextAction({ ...base, monthExpenses: 300_000 }).key).toBe('over-budget');
+  });
+
+  it('priorise le fonds d’urgence sur le taux d’épargne', () => {
+    expect(nextAction({ ...base, savingsRate: 0.05 }).key).toBe('emergency');
+  });
+
+  it('passe à l’objectif de taux quand le fonds est complet', () => {
+    expect(
+      nextAction({ ...base, emergencySaved: 1_200_000, savingsRate: 0.1 }).key
+    ).toBe('rate');
+  });
+
+  it('propose un objectif quand il n’en existe aucun', () => {
+    expect(
+      nextAction({
+        ...base,
+        emergencySaved: 1_200_000,
+        savingsRate: 0.25,
+        activeGoals: 0,
+      }).key
+    ).toBe('no-goal');
+  });
+
+  it('termine sur une trajectoire positive', () => {
+    expect(
+      nextAction({
+        ...base,
+        emergencySaved: 1_200_000,
+        savingsRate: 0.25,
+        coverage: 0.4,
+      }).key
+    ).toBe('on-track');
+  });
+
+  it('donne toujours une action, quelle que soit la situation', () => {
+    const action = nextAction({ ...base, emergencySaved: 0, emergencyTarget: 0 });
+    expect(action.title.length).toBeGreaterThan(0);
+    expect(action.cta.to.startsWith('/')).toBe(true);
+  });
+});
+
+describe('objectifs', () => {
+  it('borne la progression entre 0 et 1', () => {
+    expect(goalProgress(50_000, 100_000)).toBe(0.5);
+    expect(goalProgress(150_000, 100_000)).toBe(1);
+    expect(goalProgress(-10, 100_000)).toBe(0);
+  });
+
+  it('renvoie 0 pour une cible nulle', () => {
+    expect(goalProgress(10_000, 0)).toBe(0);
   });
 });

@@ -6,6 +6,7 @@ export type TipCategory = 'Épargner' | 'Investir' | 'Protéger' | 'Mentalité';
 export type TipLevel = 'Débutant' | 'Intermédiaire' | 'Avancé';
 
 export type NeedBasis = 'day' | 'month';
+export type IncomeKind = 'fixed' | 'variable' | 'one_off';
 
 /** Un besoin récurrent saisi au jour ou au mois. */
 export interface RecurringNeed {
@@ -60,6 +61,7 @@ export interface Transaction {
   note: string | null;
   recurrence: Recurrence;
   parent_tx_id: string | null;
+  income_kind: IncomeKind | null;
   created_at: string;
 }
 
@@ -92,6 +94,19 @@ export interface Asset {
   value: number;
   monthly_income: number;
   acquired_on: string | null;
+  created_at: string;
+}
+
+export interface Goal {
+  id: string;
+  user_id: string;
+  name: string;
+  target_amount: number;
+  current_amount: number;
+  target_date: string | null;
+  pocket: Pocket | null;
+  monthly_contribution: number;
+  archived: boolean;
   created_at: string;
 }
 
@@ -137,6 +152,8 @@ export interface UserChallenge {
   challenge_id: string | null;
   started_on: string;
   completed: boolean;
+  check_ins: number;
+  completed_at: string | null;
 }
 
 export interface NotificationSettings {
@@ -145,6 +162,8 @@ export interface NotificationSettings {
   payday_reminder: boolean;
   budget_alert: boolean;
   monthly_summary: boolean;
+  weekly_review: boolean;
+  reminder_hour: number;
   push_subscription: unknown | null;
 }
 
@@ -156,12 +175,32 @@ export interface Workspace {
   transactions: Transaction[];
   protection: ProtectionItem[];
   assets: Asset[];
+  goals: Goal[];
   simulations: Simulation[];
   tips: Tip[];
   progress: TipProgress[];
   challenges: Challenge[];
   userChallenges: UserChallenge[];
   notifications: NotificationSettings;
+}
+
+export interface WeeklyReview {
+  from: string;
+  to: string;
+  income: number;
+  expenses: number;
+  saved: number;
+  previousSaved: number;
+  change: number | null;
+  topCategory: { name: string; amount: number } | null;
+}
+
+export interface NextAction {
+  key: string;
+  tone: 'danger' | 'warning' | 'neutral' | 'positive';
+  title: string;
+  body: string;
+  cta: { label: string; to: string };
 }
 
 export interface MonthSummary {

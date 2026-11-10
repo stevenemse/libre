@@ -1,6 +1,6 @@
 import { supabase } from './supabase';
 import { todayISO } from './format';
-import type { Recurrence, TxType } from './types';
+import type { IncomeKind, Recurrence, TxType } from './types';
 
 export interface PendingTransaction {
   id: string;
@@ -11,6 +11,7 @@ export interface PendingTransaction {
   note: string | null;
   occurred_on: string;
   recurrence: Recurrence;
+  income_kind: IncomeKind | null;
 }
 
 const KEY = 'libre:pending-transactions';
@@ -61,6 +62,7 @@ export async function flushPendingTransactions(): Promise<number> {
       note: item.note,
       occurred_on: item.occurred_on,
       recurrence: item.recurrence,
+      income_kind: item.income_kind,
     });
     if (error) break;
     sent.push(item.id);

@@ -123,6 +123,55 @@ try {
   const { data: bSims } = await clientB.from('simulations').select('*').eq('user_id', userA.id);
   check('B — ne lit pas les simulations de A', (bSims?.length ?? 0) === 0);
 
+  // Objectifs (V1.1)
+  const { data: goalA, error: goalError } = await clientA
+    .from('goals')
+    .insert({ user_id: userA.id, name: 'Fonds de secours', target_amount: 200000 })
+    .select()
+    .single();
+  check('objectifs — A crée son objectif', Boolean(goalA) && !goalError, goalError?.message);
+
+  const { data: bGoals } = await clientB.from('goals').select('*').eq('user_id', userA.id);
+  check("objectifs — B ne lit pas l'objectif de A", (bGoals?.length ?? 0) === 0);
+
+  const { error: bGoalForge } = await clientB
+    .from('goals')
+    .insert({ user_id: userA.id, name: 'Intrusion', target_amount: 1 });
+  check("objectifs — B ne crée pas d'objectif au nom de A", Boolean(bGoalForge));
+
+  const { data: goalUpdated } = await clientA
+    .from('goals')
+    .update({ current_amount: 50000 })
+    .eq('id', goalA.id)
+    .select();
+  check('objectifs — A verse sur son objectif', goalUpdated?.[0]?.current_amount === 50000);
+
+  // Revenus qualifiés (V1.1)
+  const { error: kindError } = await clientA
+    .from('transactions')
+    .insert({
+      user_id: userA.id,
+      amount: 1000,
+      type: 'income',
+      occurred_on: '2026-11-02',
+      income_kind: 'hasardeux',
+    });
+  check('revenus — qualification inconnue refusée', Boolean(kindError));
+
+  // Abonnements push (V1.1)
+  const { error: pushError } = await clientA.from('push_subscriptions').insert({
+    user_id: userA.id,
+    endpoint: `https://push.test/${stamp}`,
+    subscription: { endpoint: `https://push.test/${stamp}` },
+  });
+  check('push — A enregistre son abonnement', !pushError, pushError?.message);
+
+  const { data: bPush } = await clientB
+    .from('push_subscriptions')
+    .select('*')
+    .eq('user_id', userA.id);
+  check("push — B ne lit pas l'abonnement de A", (bPush?.length ?? 0) === 0);
+
   const { data: bTips } = await clientB.from('tips').select('id').limit(5);
   check('conseils — lecture autorisée pour un utilisateur connecté', (bTips?.length ?? 0) === 5);
 

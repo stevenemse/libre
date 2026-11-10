@@ -2,8 +2,10 @@ import type {
   Allocation,
   MonthSummary,
   NeedsBreakdown,
+  NextAction,
   RecurringNeed,
   Transaction,
+  WeeklyReview,
 } from './types';
 
 export const num = (value: unknown): number => {
@@ -209,6 +211,220 @@ export const shortMonthLabel = (key: string): string => {
   const [year, month] = key.split('-').map(Number);
   return new Date(year, month - 1, 1).toLocaleDateString('fr-FR', { month: 'short' });
 };
+
+/* ------------------------------------------------------------- Revenus irréguliers */
+
+/**
+ * Base de calcul des revenus variables : médiane des mois complets qui ont
+ * porté au moins un revenu. Un mois sans revenu n'écrase pas la médiane,
+ * contrairement à une moyenne qui la tirerait vers zéro.
+ */
+export function incomeMedian(
+  transactions: Transaction[],
+  monthsBack = 3,
+  now = new Date()
+): { median: number; months: number } {
+  const keys: string[] = [];
+  for (let i = 1; i <= monthsBack; i += 1) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    keys.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+  }
+  const totals = new Map<string, number>(keys.map((key) => [key, 0]));
+  for (const tx of transactions) {
+    if (tx.type !== 'income') continue;
+    const key = tx.occurred_on.slice(0, 7);
+    if (!totals.has(key)) continue;
+    totals.set(key, (totals.get(key) ?? 0) + num(tx.amount));
+  }
+  const values = [...totals.values()].filter((value) => value > 0).sort((a, b) => a - b);
+  if (values.length === 0) return { median: 0, months: 0 };
+  const middle = Math.floor(values.length / 2);
+  const median =
+    values.length % 2 === 0 ? (values[middle - 1] + values[middle]) / 2 : values[middle];
+  return { median: round2(median), months: values.length };
+}
+
+/* ------------------------------------------------------------------ Bilan hebdo */
+
+const isoDay = (date: Date): string => {
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  return local.toISOString().slice(0, 10);
+};
+
+/** Lundi de la semaine contenant `now`. */
+export function weekStart(now = new Date()): Date {
+  const day = now.getDay(); // 0 = dimanche
+  const offset = day === 0 ? 6 : day - 1;
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate() - offset);
+}
+
+/**
+ * Bilan de la semaine en cours, comparé à la semaine précédente.
+ * Les dépenses comptent ici toutes les sorties, besoins comme envies.
+ */
+export function weeklyReview(
+  transactions: Transaction[],
+  categoryNames: Map<string, string>,
+  now = new Date()
+): WeeklyReview {
+  const start = weekStart(now);
+  const previousStart = new Date(start.getFullYear(), start.getMonth(), start.getDate() - 7);
+  const from = isoDay(start);
+  const to = isoDay(now);
+  const previousFrom = isoDay(previousStart);
+
+  let income = 0;
+  let expenses = 0;
+  let previousSaved = 0;
+  let previousIncome = 0;
+  let previousExpenses = 0;
+  const byCategory = new Map<string, number>();
+
+  for (const tx of transactions) {
+    const day = tx.occurred_on.slice(0, 10);
+    const amount = num(tx.amount);
+    const inCurrent = day >= from && day <= to;
+    const inPrevious = day >= previousFrom && day < from;
+    if (!inCurrent && !inPrevious) continue;
+    if (tx.type === 'income') {
+      if (inCurrent) income += amount;
+      else previousIncome += amount;
+      continue;
+    }
+    if (inCurrent) {
+      expenses += amount;
+      const name = (tx.category_id ? categoryNames.get(tx.category_id) : null) ?? 'Sans catégorie';
+      byCategory.set(name, (byCategory.get(name) ?? 0) + amount);
+    } else {
+      previousExpenses += amount;
+    }
+  }
+
+  previousSaved = savings(previousIncome, previousExpenses);
+  const saved = savings(income, expenses);
+  const hadPrevious = previousIncome > 0 || previousExpenses > 0;
+  const top = [...byCategory.entries()].sort((a, b) => b[1] - a[1])[0];
+
+  return {
+    from,
+    to,
+    income: round2(income),
+    expenses: round2(expenses),
+    saved: round2(saved),
+    previousSaved: round2(previousSaved),
+    change: hadPrevious ? round2(saved - previousSaved) : null,
+    topCategory: top ? { name: top[0], amount: round2(top[1]) } : null,
+  };
+}
+
+/* ------------------------------------------------- Prochaine action utile (coach) */
+
+export interface NextActionInput {
+  onboarded: boolean;
+  transactionCount: number;
+  monthIncome: number;
+  monthExpenses: number;
+  savingsRate: number;
+  goalRate: number;
+  emergencySaved: number;
+  emergencyTarget: number;
+  coverage: number;
+  activeGoals: number;
+}
+
+/**
+ * Une seule action à la fois, choisie par la règle la plus prioritaire.
+ * Aucune IA : le même état donne toujours la même recommandation.
+ */
+export function nextAction(input: NextActionInput): NextAction {
+  if (!input.onboarded) {
+    return {
+      key: 'onboarding',
+      tone: 'neutral',
+      title: 'Termine ton estimation',
+      body: "Trois minutes pour que Libre connaisse tes revenus et tes besoins réels.",
+      cta: { label: 'Continuer', to: '/onboarding' },
+    };
+  }
+  if (input.transactionCount === 0) {
+    return {
+      key: 'first-transaction',
+      tone: 'neutral',
+      title: 'Note ta première dépense',
+      body: 'Dès la première saisie, ton épargne devient réelle au lieu d’être une estimation.',
+      cta: { label: 'Ajouter', to: '/epargner' },
+    };
+  }
+  if (input.monthIncome <= 0) {
+    return {
+      key: 'no-income',
+      tone: 'neutral',
+      title: 'Ajoute ton revenu du mois',
+      body: 'Sans revenu enregistré, Libre ne peut pas calculer ton taux d’épargne.',
+      cta: { label: 'Saisir un revenu', to: '/epargner' },
+    };
+  }
+  if (input.monthExpenses > input.monthIncome) {
+    return {
+      key: 'over-budget',
+      tone: 'danger',
+      title: 'Tes dépenses dépassent tes revenus',
+      body: 'Commence par réduire un besoin récurrent de 10 % : c’est le levier le plus rapide.',
+      cta: { label: 'Voir le détail', to: '/epargner' },
+    };
+  }
+  if (input.emergencySaved < input.emergencyTarget) {
+    const missing = input.emergencyTarget - input.emergencySaved;
+    return {
+      key: 'emergency',
+      tone: 'warning',
+      title: 'Complète ton fonds d’urgence',
+      body: `Il manque ${Math.round(missing).toLocaleString('fr-FR')} pour atteindre ton coussin de sécurité.`,
+      cta: { label: 'Verser', to: '/investir' },
+    };
+  }
+  if (input.savingsRate < input.goalRate) {
+    const points = Math.round((input.goalRate - input.savingsRate) * 100);
+    return {
+      key: 'rate',
+      tone: 'warning',
+      title: 'Il te manque ' + points + ' points',
+      body: 'Chaque point gagné sur ton taux d’épargne rapproche ta liberté d’un mois.',
+      cta: { label: 'Ajuster', to: '/epargner' },
+    };
+  }
+  if (input.activeGoals === 0) {
+    return {
+      key: 'no-goal',
+      tone: 'neutral',
+      title: 'Ouvre un objectif',
+      body: 'Un fonds, un projet, une formation : un objectif chiffré donne une raison à ton épargne.',
+      cta: { label: 'Créer un objectif', to: '/epargner' },
+    };
+  }
+  if (input.coverage < 0.25) {
+    return {
+      key: 'assets',
+      tone: 'neutral',
+      title: 'Fais travailler ton épargne',
+      body: 'Tes assets couvrent moins d’un quart de tes besoins. Ajoute une source de revenu.',
+      cta: { label: 'Ajouter un asset', to: '/investir' },
+    };
+  }
+  return {
+    key: 'on-track',
+    tone: 'positive',
+    title: 'Tu es sur la bonne trajectoire',
+    body: 'Continue à verser chaque mois et vérifie ton horizon dans le simulateur.',
+    cta: { label: 'Voir mon horizon', to: '/liberte' },
+  };
+}
+
+/** Progression d'un objectif, entre 0 et 1. */
+export function goalProgress(current: number, target: number): number {
+  if (target <= 0) return 0;
+  return Math.max(0, Math.min(1, num(current) / target));
+}
 
 export interface CoachMessage {
   tone: 'danger' | 'warning' | 'neutral' | 'positive';

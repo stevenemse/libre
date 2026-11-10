@@ -6,8 +6,10 @@ import {
   useDeleteAccount,
   useSaveNotifications,
   useSaveProfile,
+  useSavePushSubscription,
   useWorkspace,
 } from '../lib/queries';
+import { pushConfigured, subscribeToPush } from '../lib/push';
 import { Alert, FieldError, SectionTitle, Sheet, Toggle, cn } from '../components/ui';
 import { currencyLabel, formatDate, formatMoney } from '../lib/format';
 import { num, recurringNeedMonthly } from '../lib/calc';
@@ -20,6 +22,7 @@ export default function Settings() {
   const { data } = useWorkspace(userId);
   const saveProfile = useSaveProfile(userId);
   const saveNotifications = useSaveNotifications(userId);
+  const savePush = useSavePushSubscription(userId);
   const deleteAccount = useDeleteAccount();
   const navigate = useNavigate();
 
@@ -34,6 +37,7 @@ export default function Settings() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteConfirmed, setDeleteConfirmed] = useState(false);
   const [notifState, setNotifState] = useState<string | null>(null);
+  const [pushBusy, setPushBusy] = useState(false);
 
   useEffect(() => {
     if (!data) return;
@@ -90,6 +94,7 @@ export default function Settings() {
           categories: data.categories.filter((category) => category.user_id === userId),
           transactions: data.transactions,
           assets: data.assets,
+          goals: data.goals,
           simulations: data.simulations,
           protection: data.protection,
           tipsProgress: data.progress,
@@ -103,16 +108,19 @@ export default function Settings() {
   };
 
   const enableNotifications = async () => {
-    if (!('Notification' in window)) {
-      setNotifState('Ton navigateur ne prend pas en charge les notifications.');
-      return;
+    setPushBusy(true);
+    setNotifState(null);
+    try {
+      const subscription = await subscribeToPush();
+      await savePush.mutateAsync(subscription);
+      setNotifState(
+        'Rappels activés sur cet appareil. Le bilan hebdomadaire et le résumé mensuel arrivent à l’heure choisie.'
+      );
+    } catch (err) {
+      setNotifState(err instanceof Error ? err.message : 'Activation impossible.');
+    } finally {
+      setPushBusy(false);
     }
-    const permission = await Notification.requestPermission();
-    if (permission !== 'granted') {
-      setNotifState('Notifications refusées. Tu peux changer ça dans les réglages du navigateur.');
-      return;
-    }
-    setNotifState("Notifications autorisées. Les rappels arrivent quand l'application est ouverte.");
   };
 
   return (
@@ -344,6 +352,12 @@ export default function Settings() {
             onChange={(next) => saveNotifications.mutate({ budget_alert: next })}
           />
           <Toggle
+            label="Bilan hebdomadaire"
+            description="Chaque lundi, ce que tu as gagné, dépensé et gardé la semaine passée."
+            checked={data.notifications.weekly_review}
+            onChange={(next) => saveNotifications.mutate({ weekly_review: next })}
+          />
+          <Toggle
             label="Résumé mensuel"
             description="Un bilan simple au début de chaque mois."
             checked={data.notifications.monthly_summary}
@@ -351,10 +365,44 @@ export default function Settings() {
           />
         </div>
 
-        <button type="button" className="btn btn-secondary mt-4" onClick={enableNotifications}>
-          Autoriser les notifications du navigateur
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <label htmlFor="reminder-hour" className="text-[13px] text-mist">
+            Heure des rappels
+          </label>
+          <select
+            id="reminder-hour"
+            className="field h-10 w-auto appearance-none pr-8 text-[13px]"
+            value={data.notifications.reminder_hour}
+            onChange={(event) =>
+              saveNotifications.mutate({ reminder_hour: Number(event.target.value) })
+            }
+          >
+            {Array.from({ length: 15 }, (_, index) => index + 7).map((hour) => (
+              <option key={hour} value={hour}>
+                {String(hour).padStart(2, '0')}:00
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <button
+          type="button"
+          className="btn btn-secondary mt-4"
+          onClick={enableNotifications}
+          disabled={pushBusy}
+        >
+          {pushBusy ? 'Activation…' : 'Activer les rappels sur cet appareil'}
         </button>
-        {notifState ? <p className="mt-2 text-[12px] text-mist">{notifState}</p> : null}
+        {notifState ? (
+          <p className="mt-2 text-[12px] leading-relaxed text-mist" role="status">
+            {notifState}
+          </p>
+        ) : null}
+        <p className="mt-2 text-[12px] leading-relaxed text-mist">
+          {pushConfigured
+            ? 'Les rappels passent par le navigateur et par e-mail quand ils sont actifs. Tu peux les couper à tout moment.'
+            : 'Les rappels navigateur et e-mail nécessitent la configuration serveur (clé VAPID et fonction notify). Tant qu’elle manque, les réglages sont enregistrés mais rien n’est envoyé.'}
+        </p>
       </section>
 
       <section className="card p-5 sm:p-6">

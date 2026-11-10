@@ -4,7 +4,13 @@ import { Sheet, FieldError, Alert } from './ui';
 import { useAddTransaction, useDeleteTransaction, useUpdateTransaction, useWorkspace } from '../lib/queries';
 import { currencyLabel, todayISO } from '../lib/format';
 import { isOnline } from '../lib/offline';
-import type { Recurrence, Transaction, TxType } from '../lib/types';
+import type { IncomeKind, Recurrence, Transaction, TxType } from '../lib/types';
+
+const INCOME_KINDS: Array<{ key: IncomeKind; label: string; hint: string }> = [
+  { key: 'fixed', label: 'Fixe', hint: 'salaire, rente' },
+  { key: 'variable', label: 'Variable', hint: 'activité, commerce' },
+  { key: 'one_off', label: 'Ponctuel', hint: 'vente, aide, prime' },
+];
 
 interface Props {
   open: boolean;
@@ -34,6 +40,7 @@ export function TransactionSheet({
   const [occurredOn, setOccurredOn] = useState(todayISO());
   const [note, setNote] = useState('');
   const [recurrence, setRecurrence] = useState<Recurrence>('none');
+  const [incomeKind, setIncomeKind] = useState<IncomeKind>('fixed');
   const [error, setError] = useState<string | null>(null);
   const [offlineSaved, setOfflineSaved] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -50,6 +57,7 @@ export function TransactionSheet({
       setOccurredOn(editing.occurred_on);
       setNote(editing.note ?? '');
       setRecurrence(editing.recurrence);
+      setIncomeKind(editing.income_kind ?? 'fixed');
     } else {
       setType(initialType);
       setAmount('');
@@ -57,6 +65,7 @@ export function TransactionSheet({
       setOccurredOn(todayISO());
       setNote('');
       setRecurrence('none');
+      setIncomeKind('fixed');
     }
   }, [open, editing, initialType]);
 
@@ -95,6 +104,7 @@ export function TransactionSheet({
             occurred_on: occurredOn,
             note: note.trim() || null,
             recurrence,
+            income_kind: type === 'income' ? incomeKind : null,
           },
         });
       } else {
@@ -105,6 +115,7 @@ export function TransactionSheet({
           occurred_on: occurredOn,
           note: note.trim() || null,
           recurrence,
+          income_kind: type === 'income' ? incomeKind : null,
         });
         if (result.queued) setOfflineSaved(true);
       }
@@ -201,6 +212,32 @@ export function TransactionSheet({
             })}
           </div>
         </div>
+
+        {type === 'income' ? (
+          <div>
+            <span className="field-label">Type de revenu</span>
+            <div className="flex flex-wrap gap-2">
+              {INCOME_KINDS.map((option) => (
+                <button
+                  key={option.key}
+                  type="button"
+                  className="pill"
+                  aria-pressed={incomeKind === option.key}
+                  onClick={() => setIncomeKind(option.key)}
+                >
+                  {option.label}
+                  <span className={incomeKind === option.key ? 'text-ink/60' : 'text-mist/70'}>
+                    · {option.hint}
+                  </span>
+                </button>
+              ))}
+            </div>
+            <p className="mt-2 text-[12px] leading-relaxed text-mist">
+              Libre calcule ta base de calcul sur la médiane de tes revenus variables, jamais sur
+              ton meilleur mois.
+            </p>
+          </div>
+        ) : null}
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div>

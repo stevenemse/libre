@@ -1,14 +1,17 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
+  ArrowRight,
   ArrowUpRight,
   BookOpen,
+  CalendarDays,
   ChevronRight,
   Compass,
   PiggyBank,
   Plus,
   ShieldCheck,
   Sparkles,
+  Target,
   TrendingDown,
   TrendingUp,
 } from 'lucide-react';
@@ -22,12 +25,15 @@ import {
   currentMonthKey,
   emergencyTarget,
   freedomCapital,
+  incomeMedian,
   monthLabel,
   monthlySummaries,
+  nextAction,
   num,
   pocketAmounts,
   savings,
   savingsRate,
+  weeklyReview,
 } from '../lib/calc';
 import { categoryIcon } from '../lib/icons';
 import type { Tip } from '../lib/types';
@@ -104,6 +110,13 @@ export default function Home() {
       .sort((a, b) => (a.occurred_on < b.occurred_on ? 1 : -1))
       .slice(0, 5);
 
+    const names = new Map(data.categories.map((category) => [category.id, category.name]));
+    const review = weeklyReview(data.transactions, names);
+    const hasVariableIncome = data.transactions.some(
+      (tx) => tx.type === 'income' && tx.income_kind === 'variable'
+    );
+    const variableBase = incomeMedian(data.transactions);
+
     return {
       income,
       needs,
@@ -121,6 +134,9 @@ export default function Home() {
       recent,
       monthKey,
       summaries,
+      review,
+      hasVariableIncome,
+      variableBase,
     };
   }, [data]);
 
@@ -137,6 +153,19 @@ export default function Home() {
     num(data.allocation.pct_subsistence) +
     num(data.allocation.pct_assets) +
     num(data.allocation.pct_protection);
+
+  const action = nextAction({
+    onboarded: data.profile.onboarded,
+    transactionCount: data.transactions.length,
+    monthIncome: derived.income,
+    monthExpenses: derived.needs + derived.wants,
+    savingsRate: derived.rate,
+    goalRate,
+    emergencySaved,
+    emergencyTarget: derived.emergencyGoal,
+    coverage: derived.coverage,
+    activeGoals: data.goals.length,
+  });
 
   return (
     <div className="fade-up space-y-6">
@@ -158,6 +187,27 @@ export default function Home() {
           Ajouter
         </button>
       </header>
+
+      {/* Prochaine action utile : une seule à la fois, choisie par les chiffres */}
+      <section
+        className="card flex flex-wrap items-center gap-4 p-4 sm:p-5"
+        aria-labelledby="next-action-title"
+      >
+        <IconCircle icon={Target} tone="accent" size={44} />
+        <div className="min-w-0 flex-1">
+          <p className="label">Ta prochaine action</p>
+          <p id="next-action-title" className="mt-0.5 text-[16px] font-semibold">
+            {action.title}
+          </p>
+          <p className="mt-1 max-w-[60ch] text-[13px] leading-relaxed text-mist">
+            {action.body}
+          </p>
+        </div>
+        <Link to={action.cta.to} className="btn btn-secondary h-10 shrink-0 text-[13px]">
+          {action.cta.label}
+          <ArrowRight size={15} strokeWidth={2} />
+        </Link>
+      </section>
 
       <div className="grid gap-4 lg:grid-cols-3">
         {/* Carte vedette */}
@@ -181,6 +231,14 @@ export default function Home() {
               {data.transactions.length === 0 ? (
                 <p className="mt-1 text-[12px] text-ink/55">
                   Estimation à partir de tes moyennes d'inscription.
+                </p>
+              ) : null}
+              {derived.hasVariableIncome && derived.variableBase.median > 0 ? (
+                <p className="mt-1 text-[12px] text-ink/55">
+                  Revenus variables : base de calcul{' '}
+                  {formatAmount(derived.variableBase.median, currency)}, médiane de tes{' '}
+                  {derived.variableBase.months} dernier
+                  {derived.variableBase.months > 1 ? 's' : ''} mois complets.
                 </p>
               ) : null}
             </div>
@@ -290,6 +348,60 @@ export default function Home() {
           </div>
         ))}
       </div>
+
+      {/* Bilan de la semaine */}
+      <section className="card p-5 sm:p-6">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="label">Bilan de la semaine</p>
+            <h2 className="mt-1 text-[22px]">
+              {derived.review.income === 0 && derived.review.expenses === 0
+                ? 'Rien d’enregistré cette semaine'
+                : derived.review.saved > 0
+                  ? `${formatAmount(derived.review.saved, currency)} gardés`
+                  : 'Aucune épargne cette semaine'}
+            </h2>
+          </div>
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-slate2 px-3 py-1 text-[12px] text-mist">
+            <CalendarDays size={13} strokeWidth={1.75} aria-hidden="true" />
+            {formatDay(derived.review.from)} → {formatDay(derived.review.to)}
+          </span>
+        </div>
+
+        <dl className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <div className="rounded-2xl bg-slate2/70 p-3">
+            <dt className="text-[11px] text-mist">Gagné</dt>
+            <dd className="num mt-1 text-[15px] font-semibold">
+              {formatAmount(derived.review.income, currency)}
+            </dd>
+          </div>
+          <div className="rounded-2xl bg-slate2/70 p-3">
+            <dt className="text-[11px] text-mist">Dépensé</dt>
+            <dd className="num mt-1 text-[15px] font-semibold">
+              {formatAmount(derived.review.expenses, currency)}
+            </dd>
+          </div>
+          <div className="rounded-2xl bg-slate2/70 p-3">
+            <dt className="text-[11px] text-mist">Gardé</dt>
+            <dd className="num mt-1 text-[15px] font-semibold">
+              {formatAmount(derived.review.saved, currency)}
+            </dd>
+          </div>
+        </dl>
+
+        <p className="mt-3 text-[12px] leading-relaxed text-mist">
+          {derived.review.change === null
+            ? 'Première semaine suivie : le comparatif apparaîtra la semaine prochaine.'
+            : derived.review.change === 0
+              ? 'Même épargne que la semaine dernière.'
+              : derived.review.change > 0
+                ? `Tu as gardé ${formatAmount(derived.review.change, currency)} de plus que la semaine dernière.`
+                : `Tu as gardé ${formatAmount(Math.abs(derived.review.change), currency)} de moins que la semaine dernière.`}
+          {derived.review.topCategory
+            ? ` Ta plus grosse sortie : ${derived.review.topCategory.name} (${formatAmount(derived.review.topCategory.amount, currency)}).`
+            : ''}
+        </p>
+      </section>
 
       <div className="grid gap-4 lg:grid-cols-2">
         {/* Vers la liberté */}
