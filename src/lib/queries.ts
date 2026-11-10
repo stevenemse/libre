@@ -112,6 +112,7 @@ async function loadWorkspace(userId: string): Promise<Workspace> {
     emergency: (emergency.data as EmergencyFund | null) ?? {
       user_id: userId,
       amount_saved: 0,
+      target_amount: null,
       updated_at: new Date().toISOString(),
     },
     categories: (categories.data ?? []) as Category[],
@@ -235,11 +236,14 @@ export function useSaveAllocation(userId: string | undefined) {
 export function useSaveEmergency(userId: string | undefined) {
   const invalidate = useInvalidate();
   return useMutation({
-    mutationFn: async (amount: number) => {
+    mutationFn: async (payload: { amount?: number; target?: number | null }) => {
       if (!userId) throw new Error('Session expirée');
+      const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
+      if (payload.amount !== undefined) update.amount_saved = payload.amount;
+      if (payload.target !== undefined) update.target_amount = payload.target;
       const { error } = await supabase
         .from('emergency_fund')
-        .update({ amount_saved: amount, updated_at: new Date().toISOString() })
+        .update(update)
         .eq('user_id', userId);
       if (error) throw new Error(error.message);
     },

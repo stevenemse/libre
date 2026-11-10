@@ -37,6 +37,7 @@ export default function Settings() {
   const [rateGoal, setRateGoal] = useState(20);
   const [emergencyMonths, setEmergencyMonths] = useState(6);
   const [emergencyAmount, setEmergencyAmount] = useState('');
+  const [emergencyTargetInput, setEmergencyTargetInput] = useState('');
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -53,6 +54,9 @@ export default function Settings() {
     setRateGoal(num(data.profile.savings_rate_goal));
     setEmergencyMonths(data.profile.emergency_months);
     setEmergencyAmount(String(num(data.emergency.amount_saved)));
+    setEmergencyTargetInput(
+      data.emergency.target_amount != null ? String(num(data.emergency.target_amount)) : ''
+    );
   }, [data]);
 
   if (!data) return null;
@@ -320,9 +324,39 @@ export default function Settings() {
           </div>
         </div>
 
+        <div className="mt-5">
+          <label htmlFor="settings-emergency-target" className="field-label">
+            Cible du fonds d'urgence (palier)
+          </label>
+          <div className="relative">
+            <input
+              id="settings-emergency-target"
+              className="field pr-20"
+              inputMode="decimal"
+              value={emergencyTargetInput}
+              onChange={(event) => {
+                setEmergencyTargetInput(event.target.value);
+                setSaved(false);
+              }}
+              placeholder="0"
+            />
+            <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-[12px] text-mist">
+              {currencyLabel(currency)}
+            </span>
+          </div>
+          <p className="mt-1 text-[12px] text-mist">
+            Laisse vide pour garder le calcul automatique ({formatAmount((parseAmount(needs) > 0 ? parseAmount(needs) : num(data.profile.avg_needs)) * emergencyMonths, currency)} ={' '}
+            {emergencyMonths} × tes besoins). Modifie ce palier si tu vises un montant précis.
+          </p>
+        </div>
+
         {(() => {
           const monthlyNeeds = parseAmount(needs) > 0 ? parseAmount(needs) : num(data.profile.avg_needs);
-          const target = monthlyNeeds * emergencyMonths;
+          const customTarget = parseAmount(emergencyTargetInput);
+          const target =
+            emergencyTargetInput.trim() !== '' && customTarget > 0
+              ? customTarget
+              : monthlyNeeds * emergencyMonths;
           const savedAmt = Math.max(
             parseAmount(emergencyAmount),
             data.goals
@@ -388,7 +422,13 @@ export default function Settings() {
                   savings_rate_goal: rateGoal,
                   emergency_months: emergencyMonths,
                 });
-                await saveEmergency.mutateAsync(Math.max(0, parseAmount(emergencyAmount)));
+                await saveEmergency.mutateAsync({
+                  amount: Math.max(0, parseAmount(emergencyAmount)),
+                  target:
+                    emergencyTargetInput.trim() === ''
+                      ? null
+                      : Math.max(0, parseAmount(emergencyTargetInput)),
+                });
                 setSaved(true);
               } catch (err) {
                 setError(err instanceof Error ? err.message : 'Enregistrement impossible.');

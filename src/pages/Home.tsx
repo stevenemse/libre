@@ -85,7 +85,10 @@ export default function Home() {
     const rate = savingsRate(income, needs + (current?.savingsOut ?? 0));
     const pockets = pocketAmounts(saved, data.allocation);
     const needsForPlanning = needs > 0 ? needs : num(data.profile.avg_needs);
-    const emergencyGoal = emergencyTarget(needsForPlanning, data.profile.emergency_months);
+    const emergencyGoal =
+      data.emergency.target_amount != null
+        ? num(data.emergency.target_amount)
+        : emergencyTarget(needsForPlanning, data.profile.emergency_months);
     const target = freedomCapital(needsForPlanning);
 
     const assetsValue = data.assets.reduce((sum, asset) => sum + num(asset.value), 0);

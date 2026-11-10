@@ -100,7 +100,10 @@ export default function Invest() {
     const needs = current?.needs ?? 0;
     const monthlySavings = Math.max(0, savings(income, needs) - (current?.savingsOut ?? 0));
     const planningNeeds = needs > 0 ? needs : num(data.profile.avg_needs);
-    const target = emergencyTarget(planningNeeds, data.profile.emergency_months);
+    const target =
+      data.emergency.target_amount != null
+        ? num(data.emergency.target_amount)
+        : emergencyTarget(planningNeeds, data.profile.emergency_months);
     const assetsValue = data.assets.reduce((sum, asset) => sum + num(asset.value), 0);
     const passive = data.assets.reduce((sum, asset) => sum + num(asset.monthly_income), 0);
     return { monthlySavings, planningNeeds, target, assetsValue, passive };
@@ -324,7 +327,7 @@ export default function Invest() {
             className="mt-5 flex gap-2"
             onSubmit={async (event) => {
               event.preventDefault();
-              await saveEmergency.mutateAsync(Math.max(0, emergencyAmount));
+              await saveEmergency.mutateAsync({ amount: Math.max(0, emergencyAmount) });
               setEmergencySaved(true);
             }}
           >

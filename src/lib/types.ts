@@ -79,6 +79,7 @@ export interface Allocation {
 export interface EmergencyFund {
   user_id: string;
   amount_saved: number;
+  target_amount: number | null;
   updated_at: string;
 }
 
