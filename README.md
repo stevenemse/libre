@@ -128,6 +128,12 @@ Données réalistes sur cinq mois (compte de test, supprimable depuis Paramètre
 - Les tests `npm run test:rls` créent deux comptes réels et prouvent qu'aucune lecture,
   écriture ou suppression croisée n'est possible.
 
+## Documentation produit
+
+- [`docs/CAHIER-DES-CHARGES-V2.md`](docs/CAHIER-DES-CHARGES-V2.md) : cahier des charges
+  V2 (modules cibles, migrations internationales, portefeuilles, dettes, coach, offres,
+  feuille de route et critères de sortie).
+
 ## Limites connues
 
 - **Notifications push et e-mail** : les réglages sont enregistrés et l'autorisation
