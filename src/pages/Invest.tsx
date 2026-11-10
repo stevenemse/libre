@@ -213,7 +213,7 @@ export default function Invest() {
                 <label htmlFor="pct-assets" className="text-[14px] font-medium">
                   Assets
                 </label>
-                <span className="num text-[15px] font-semibold text-accent">{rounded.a} %</span>
+                <span className="num text-[15px] font-semibold text-accent-text">{rounded.a} %</span>
               </div>
               <input
                 id="pct-assets"
@@ -285,7 +285,7 @@ export default function Invest() {
                   'Enregistrer la répartition'
                 )}
               </button>
-              <Link to="/conseils" className="text-[13px] font-semibold text-accent">
+              <Link to="/conseils" className="text-[13px] font-semibold text-accent-text">
                 Comprendre les poches
               </Link>
             </div>
@@ -379,13 +379,13 @@ export default function Invest() {
                   <button
                     type="button"
                     onClick={() => toggleProtection.mutate({ itemKey: item.key, done: !done })}
-                    className="flex w-full items-center gap-3 rounded-2xl px-2 py-2.5 text-left transition-colors hover:bg-white/5"
+                    className="flex w-full items-center gap-3 rounded-2xl px-2 py-2.5 text-left transition-colors hover:bg-veil"
                     aria-pressed={done}
                   >
                     <span
                       className={cn(
                         'flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border transition-colors',
-                        done ? 'border-accent bg-accent text-ink' : 'border-white/15 text-transparent'
+                        done ? 'border-accent bg-accent text-ink' : 'border-line-strong text-transparent'
                       )}
                       aria-hidden="true"
                     >
@@ -395,7 +395,7 @@ export default function Invest() {
                       <span
                         className={cn(
                           'block text-[14px] font-medium',
-                          done && 'text-mist line-through decoration-white/20'
+                          done && 'text-mist line-through decoration-line'
                         )}
                       >
                         {item.label}
@@ -434,7 +434,7 @@ export default function Invest() {
             </div>
             <div>
               <p className="label">Revenu passif / mois</p>
-              <p className="num mt-1 text-[22px] font-semibold text-accent">
+              <p className="num mt-1 text-[22px] font-semibold text-accent-text">
                 {formatAmount(derived.passive, currency)}
               </p>
             </div>
@@ -457,7 +457,7 @@ export default function Invest() {
               </div>
             </div>
           ) : (
-            <ul className="mt-5 divide-y divide-white/5">
+            <ul className="mt-5 divide-y divide-line">
               {data.assets.map((asset) => (
                 <li key={asset.id} className="flex items-center gap-3 py-3">
                   <IconCircle icon={asset.asset_type === 'Immobilier' ? Landmark : Banknote} size={36} />
@@ -473,7 +473,7 @@ export default function Invest() {
                   </span>
                   <button
                     type="button"
-                    className="flex h-9 w-9 items-center justify-center rounded-full text-mist transition-colors hover:bg-coral/10 hover:text-coral"
+                    className="flex h-9 w-9 items-center justify-center rounded-full text-mist transition-colors hover:bg-coral/10 hover:text-coral-text"
                     onClick={() => {
                       if (window.confirm(`Supprimer « ${asset.name} » ?`)) deleteAsset.mutate(asset.id);
                     }}

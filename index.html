@@ -4,6 +4,20 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#0B0F15" />
+    <script>
+      // Appliqué avant le premier rendu pour éviter un flash de thème.
+      try {
+        var stored = localStorage.getItem('libre-theme');
+        var theme = stored === 'light' ? 'light' : 'dark';
+        document.documentElement.dataset.theme = theme;
+        document.documentElement.style.colorScheme = theme;
+        if (theme === 'light') {
+          document.querySelector('meta[name="theme-color"]').content = '#EEF1F5';
+        }
+      } catch (error) {
+        document.documentElement.dataset.theme = 'dark';
+      }
+    </script>
     <meta
       name="description"
       content="Libre — ton compagnon financier. Budget, épargne, répartition et simulateur de liberté financière."

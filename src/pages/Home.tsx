@@ -325,7 +325,7 @@ export default function Home() {
 
           <Link
             to="/investir"
-            className="mt-4 inline-flex items-center gap-1 text-[13px] font-semibold text-accent"
+            className="mt-4 inline-flex items-center gap-1 text-[13px] font-semibold text-accent-text"
           >
             {emergencyProgress >= 1 ? 'Fonds complet, bravo' : 'Compléter mon fonds'}
             <ChevronRight size={15} strokeWidth={2} />
@@ -471,7 +471,7 @@ export default function Home() {
             </Link>
           </div>
 
-          <div className="mt-5 flex h-2.5 w-full overflow-hidden rounded-full bg-white/8" aria-hidden="true">
+          <div className="mt-5 flex h-2.5 w-full overflow-hidden rounded-full bg-line" aria-hidden="true">
             {POCKETS.map((pocket) => (
               <div
                 key={pocket.key}
@@ -561,7 +561,7 @@ export default function Home() {
               Dès ta première saisie, ton épargne et ton taux se calculent tout seuls.
             </EmptyState>
           ) : (
-            <ul className="card divide-y divide-white/5 p-2">
+            <ul className="card divide-y divide-line p-2">
               {derived.recent.map((tx) => {
                 const category = data.categories.find((item) => item.id === tx.category_id);
                 const Icon = categoryIcon(category?.icon, category?.name);
@@ -579,7 +579,7 @@ export default function Home() {
                     <span
                       className={cn(
                         'num shrink-0 text-[14px] font-semibold',
-                        tx.type === 'income' ? 'text-accent' : 'text-snow'
+                        tx.type === 'income' ? 'text-accent-text' : 'text-snow'
                       )}
                     >
                       {tx.type === 'income' ? '+' : '−'}

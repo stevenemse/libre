@@ -301,7 +301,7 @@ export function TransactionSheet({
           {editing ? (
             <button
               type="button"
-              className="btn btn-secondary text-coral"
+              className="btn btn-secondary text-coral-text"
               onClick={async () => {
                 if (!confirmDelete) {
                   setConfirmDelete(true);

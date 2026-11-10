@@ -123,7 +123,7 @@ function DaysInput({
 function BasisSwitch({ value, onChange }: { value: NeedBasis; onChange: (v: NeedBasis) => void }) {
   return (
     <div
-      className="mt-4 grid grid-cols-2 gap-1 rounded-full border border-white/8 bg-slate1/60 p-1"
+      className="mt-4 grid grid-cols-2 gap-1 rounded-full border border-line bg-slate1/60 p-1"
       role="group"
       aria-label="Base du calcul"
     >
@@ -302,7 +302,7 @@ export default function Onboarding({ profile }: { profile?: Profile }) {
                 key={index}
                 className={cn(
                   'h-1.5 flex-1 rounded-full transition-colors duration-300',
-                  index <= step ? 'bg-accent' : 'bg-white/10'
+                  index <= step ? 'bg-accent' : 'bg-line'
                 )}
               />
             ))}
@@ -350,7 +350,7 @@ export default function Onboarding({ profile }: { profile?: Profile }) {
                         'flex items-center justify-between rounded-2xl border px-4 py-3 text-left transition-colors',
                         currency === option.code
                           ? 'border-accent bg-accent/10'
-                          : 'border-white/8 bg-slate2/50 hover:bg-slate2'
+                          : 'border-line bg-slate2/50 hover:bg-slate2'
                       )}
                     >
                       <span>
@@ -541,7 +541,7 @@ export default function Onboarding({ profile }: { profile?: Profile }) {
                       {formatMoney(housingMonthly, currency)}
                     </span>
                   </div>
-                  <div className="mt-2 flex items-baseline justify-between gap-3 border-t border-white/8 pt-2">
+                  <div className="mt-2 flex items-baseline justify-between gap-3 border-t border-line pt-2">
                     <span className="text-[13px] font-medium">Total de tes besoins</span>
                     <span className="num text-[18px] font-semibold text-snow">
                       {formatMoney(needs, currency)}
@@ -550,7 +550,7 @@ export default function Onboarding({ profile }: { profile?: Profile }) {
                 </div>
 
                 {parsedIncome > 0 && needs > parsedIncome ? (
-                  <p className="mt-3 text-[13px] leading-relaxed text-amber">
+                  <p className="mt-3 text-[13px] leading-relaxed text-amber-text">
                     Tes besoins dépassent tes revenus actuels. C'est un point de départ, pas un
                     jugement : Libre va t'aider à voir où agir.
                   </p>
@@ -577,7 +577,7 @@ export default function Onboarding({ profile }: { profile?: Profile }) {
                         'rounded-2xl border p-3 text-left transition-colors',
                         goal === option.key
                           ? 'border-accent bg-accent/10'
-                          : 'border-white/8 bg-slate2/50 hover:bg-slate2'
+                          : 'border-line bg-slate2/50 hover:bg-slate2'
                       )}
                     >
                       <span className="block text-[14px] font-semibold">{option.label}</span>
@@ -588,7 +588,7 @@ export default function Onboarding({ profile }: { profile?: Profile }) {
                   ))}
                 </div>
 
-                <div className="mt-4 rounded-2xl border border-white/8 bg-slate1/40 px-4 py-3">
+                <div className="mt-4 rounded-2xl border border-line bg-slate1/40 px-4 py-3">
                   <p className="text-[12px] font-medium uppercase tracking-wide text-mist">
                     Ton estimation
                   </p>
@@ -615,7 +615,7 @@ export default function Onboarding({ profile }: { profile?: Profile }) {
                       <dt className="text-mist">Logement et autres</dt>
                       <dd className="num">{formatMoney(housingMonthly, currency)}</dd>
                     </div>
-                    <div className="flex items-baseline justify-between gap-3 border-t border-white/8 pt-1.5">
+                    <div className="flex items-baseline justify-between gap-3 border-t border-line pt-1.5">
                       <dt className="font-medium text-snow">Besoins par mois</dt>
                       <dd className="num font-semibold">{formatMoney(needs, currency)}</dd>
                     </div>

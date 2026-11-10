@@ -59,7 +59,7 @@ export default function Auth() {
         <section className="fade-up">
           <Logo size={26} />
           <h1 className="mt-8 max-w-[15ch] text-[38px] font-semibold leading-[1.05] sm:text-[52px]">
-            Richesse<span className="text-accent"> =</span> liberté.
+            Richesse<span className="text-accent-text"> =</span> liberté.
           </h1>
           <p className="mt-4 max-w-[46ch] text-[16px] leading-relaxed text-mist">
             Libre t'aide à suivre ton argent, épargner sans te priver et construire des revenus qui
@@ -69,7 +69,7 @@ export default function Auth() {
           <ul className="mt-8 space-y-3">
             {IDEAS.map((idea) => (
               <li key={idea} className="flex items-start gap-3">
-                <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent/15 text-accent">
+                <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent/15 text-accent-text">
                   <Check size={13} strokeWidth={2.5} aria-hidden="true" />
                 </span>
                 <span className="max-w-[52ch] text-[14px] leading-relaxed text-mist">{idea}</span>
@@ -79,7 +79,7 @@ export default function Auth() {
 
           <div className="mt-8 grid max-w-md grid-cols-2 gap-3">
             <div className="card-flat p-4">
-              <p className="text-[26px] font-semibold leading-none text-accent">4 %</p>
+              <p className="text-[26px] font-semibold leading-none text-accent-text">4 %</p>
               <p className="mt-1.5 text-[13px] leading-snug text-mist">
                 La règle qui transforme un capital en revenu mensuel.
               </p>

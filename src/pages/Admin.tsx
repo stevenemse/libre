@@ -39,12 +39,12 @@ function Stat({
 
 function CheckRow({ label, value, ok }: { label: string; value: number; ok: boolean }) {
   return (
-    <div className="flex items-center justify-between gap-3 border-b border-white/5 py-2.5 last:border-0">
+    <div className="flex items-center justify-between gap-3 border-b border-line py-2.5 last:border-0">
       <span className="text-[13px] text-mist">{label}</span>
       <span
         className={cn(
           'num rounded-full px-2.5 py-0.5 text-[12px] font-semibold',
-          ok ? 'bg-accent/15 text-accent' : 'bg-coral/15 text-coral'
+          ok ? 'bg-accent/15 text-accent-text' : 'bg-coral/15 text-coral-text'
         )}
       >
         {value}
@@ -167,7 +167,7 @@ export default function Admin() {
           <div className="overflow-x-auto">
             <table className="w-full min-w-[560px] border-collapse text-left">
               <thead>
-                <tr className="border-b border-white/8 text-[11px] uppercase tracking-wide text-mist">
+                <tr className="border-b border-line text-[11px] uppercase tracking-wide text-mist">
                   <th className="py-2 pr-3 font-medium">Compte</th>
                   <th className="py-2 pr-3 font-medium">Inscrit</th>
                   <th className="py-2 pr-3 font-medium">Activité</th>
@@ -177,7 +177,7 @@ export default function Admin() {
               </thead>
               <tbody>
                 {accounts.map((account) => (
-                  <tr key={account.id} className="border-b border-white/5 last:border-0">
+                  <tr key={account.id} className="border-b border-line last:border-0">
                     <td className="py-3 pr-3">
                       <p className="text-[13px] font-medium">{account.email ?? '—'}</p>
                       <p className="text-[12px] text-mist">
@@ -197,8 +197,8 @@ export default function Admin() {
                         className={cn(
                           'rounded-full px-2 py-0.5 text-[11px] font-semibold',
                           account.onboarded
-                            ? 'bg-accent/15 text-accent'
-                            : 'bg-amber/15 text-amber'
+                            ? 'bg-accent/15 text-accent-text'
+                            : 'bg-amber/15 text-amber-text'
                         )}
                       >
                         {account.onboarded ? 'Actif' : 'En cours'}

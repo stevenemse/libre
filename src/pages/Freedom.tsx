@@ -69,7 +69,7 @@ function GrowthChart({
             x2={width - padding.right}
             y1={padding.top + plotH * f}
             y2={padding.top + plotH * f}
-            stroke="rgba(255,255,255,0.06)"
+            className="stroke-line"
           />
         ))}
 
@@ -78,7 +78,7 @@ function GrowthChart({
           x2={width - padding.right}
           y1={height - padding.bottom}
           y2={height - padding.bottom}
-          stroke="rgba(255,255,255,0.12)"
+          className="stroke-line-strong"
         />
 
         <path d={area} fill="url(#freedom-area)" />
@@ -374,7 +374,7 @@ export default function Freedom() {
             </div>
             <div>
               <p className="label">Années avant la liberté</p>
-              <p className="num mt-1 text-[24px] font-semibold leading-tight text-accent">
+              <p className="num mt-1 text-[24px] font-semibold leading-tight text-accent-text">
                 {yearsTo === null ? '—' : yearsTo === 0 ? 'Maintenant' : `${yearsTo} ans`}
               </p>
             </div>
@@ -442,7 +442,7 @@ export default function Freedom() {
                             'flex h-8 w-8 items-center justify-center rounded-full border text-[12px] font-bold transition-colors',
                             (slot === 'a' ? isA : isB)
                               ? 'border-accent bg-accent text-ink'
-                              : 'border-white/10 text-mist hover:text-snow'
+                              : 'border-line text-mist hover:text-snow'
                           )}
                           aria-label={`Comparer ${simulation.label ?? 'ce scénario'} en ${slot.toUpperCase()}`}
                         >
@@ -451,7 +451,7 @@ export default function Freedom() {
                       ))}
                       <button
                         type="button"
-                        className="flex h-8 w-8 items-center justify-center rounded-full text-mist transition-colors hover:bg-coral/10 hover:text-coral"
+                        className="flex h-8 w-8 items-center justify-center rounded-full text-mist transition-colors hover:bg-coral/10 hover:text-coral-text"
                         onClick={() => deleteSimulation.mutate(simulation.id)}
                         aria-label={`Supprimer ${simulation.label ?? 'le scénario'}`}
                       >
@@ -469,7 +469,7 @@ export default function Freedom() {
                     </div>
                     <div>
                       <dt className="text-mist">Besoins couverts</dt>
-                      <dd className="num mt-0.5 text-[14px] font-semibold text-accent">
+                      <dd className="num mt-0.5 text-[14px] font-semibold text-accent-text">
                         {formatPercent(Math.min(9.99, computed?.coverage ?? 0))}
                       </dd>
                     </div>
@@ -489,7 +489,7 @@ export default function Freedom() {
                 const computed = id ? scenarioValue(id) : null;
                 return (
                   <div key={slot}>
-                    <p className="text-[12px] font-semibold text-accent">{slot.toUpperCase()}</p>
+                    <p className="text-[12px] font-semibold text-accent-text">{slot.toUpperCase()}</p>
                     <p className="mt-1 text-[14px] font-medium">
                       {computed?.scenario.label || 'Scénario'}
                     </p>

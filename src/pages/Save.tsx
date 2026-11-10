@@ -88,7 +88,7 @@ function HistoryChart({
           x2={width - paddingX}
           y1={height - paddingBottom}
           y2={height - paddingBottom}
-          stroke="rgba(255,255,255,0.1)"
+          className="stroke-line"
           strokeWidth={1}
         />
         {data.map((item, index) => {
@@ -373,7 +373,7 @@ export default function Save() {
                     </div>
                     <button
                       type="button"
-                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-mist transition-colors hover:bg-coral/10 hover:text-coral"
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-mist transition-colors hover:bg-coral/10 hover:text-coral-text"
                       aria-label={`Supprimer l'objectif ${goal.name}`}
                       onClick={() => {
                         if (window.confirm(`Supprimer l'objectif « ${goal.name} » ?`)) {
@@ -409,7 +409,7 @@ export default function Save() {
 
                   <button
                     type="button"
-                    className="btn btn-ghost mt-3 h-9 w-full text-[13px] text-accent"
+                    className="btn btn-ghost mt-3 h-9 w-full text-[13px] text-accent-text"
                     onClick={() => {
                       setFunding(goal);
                       setFundAmount('');
@@ -471,7 +471,7 @@ export default function Save() {
             Ajoute ta première dépense pour voir ton épargne calculée automatiquement.
           </EmptyState>
         ) : (
-          <ul className="card divide-y divide-white/5 p-2">
+          <ul className="card divide-y divide-line p-2">
             {derived.monthTransactions.map((tx) => {
               const category = data.categories.find((item) => item.id === tx.category_id);
               const Icon = categoryIcon(category?.icon, category?.name);
@@ -498,7 +498,7 @@ export default function Save() {
                   <span
                     className={cn(
                       'num text-[14px] font-semibold',
-                      tx.type === 'income' ? 'text-accent' : 'text-snow'
+                      tx.type === 'income' ? 'text-accent-text' : 'text-snow'
                     )}
                   >
                     {tx.type === 'income' ? '+' : '−'}
@@ -507,7 +507,7 @@ export default function Save() {
                   <div className="flex items-center gap-1">
                     <button
                       type="button"
-                      className="flex h-9 w-9 items-center justify-center rounded-full text-mist transition-colors hover:bg-white/5 hover:text-snow"
+                      className="flex h-9 w-9 items-center justify-center rounded-full text-mist transition-colors hover:bg-veil hover:text-snow"
                       onClick={() => {
                         setEditing(tx);
                         setEditingOpen(true);
@@ -518,7 +518,7 @@ export default function Save() {
                     </button>
                     <button
                       type="button"
-                      className="flex h-9 w-9 items-center justify-center rounded-full text-mist transition-colors hover:bg-coral/10 hover:text-coral"
+                      className="flex h-9 w-9 items-center justify-center rounded-full text-mist transition-colors hover:bg-coral/10 hover:text-coral-text"
                       onClick={() => {
                         if (window.confirm('Supprimer cette transaction ?')) {
                           deleteTransaction.mutate(tx.id);

@@ -50,7 +50,7 @@ export function ProgressBar({
     <div className="w-full">
       <div
         className="w-full overflow-hidden rounded-full"
-        style={{ height, background: 'rgba(255,255,255,0.08)' }}
+        style={{ height, background: 'var(--color-track)' }}
         role="progressbar"
         aria-valuemin={0}
         aria-valuemax={100}
@@ -197,7 +197,7 @@ export function Toggle({
         onClick={() => onChange(!checked)}
         className={cn(
           'relative mt-0.5 h-7 w-12 shrink-0 rounded-full border transition-colors',
-          checked ? 'border-accent bg-accent' : 'border-white/10 bg-slate2',
+          checked ? 'border-accent bg-accent' : 'border-line bg-slate2',
           disabled && 'opacity-40'
         )}
       >
@@ -216,7 +216,7 @@ export function Toggle({
 export function FieldError({ children }: { children?: ReactNode }) {
   if (!children) return null;
   return (
-    <p className="mt-1.5 text-[13px] text-coral" role="alert">
+    <p className="mt-1.5 text-[13px] text-coral-text" role="alert">
       {children}
     </p>
   );
@@ -272,7 +272,7 @@ export function CoachNote({
         ? 'var(--color-amber)'
         : tone === 'positive'
           ? 'var(--color-accent)'
-          : 'rgba(255,255,255,0.35)';
+          : 'var(--color-line-strong)';
   return (
     <div className="border-l-[3px] pl-4" style={{ borderColor: color }}>
       <p className="text-[15px] font-semibold">{title}</p>
@@ -344,7 +344,7 @@ export function EmptyState({
   action?: ReactNode;
 }) {
   return (
-    <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-white/10 px-6 py-10 text-center">
+    <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-line px-6 py-10 text-center">
       <IconCircle icon={Icon} size={44} />
       <p className="mt-3 text-[15px] font-semibold">{title}</p>
       {children ? <p className="mt-1 max-w-sm text-sm text-mist">{children}</p> : null}

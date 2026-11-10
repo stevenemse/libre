@@ -334,7 +334,7 @@ export default function Settings() {
           </span>
         </SectionTitle>
 
-        <div className="divide-y divide-white/8">
+        <div className="divide-y divide-line">
           <Toggle
             label="Rappel de saisie"
             description="Un rappel quotidien pour noter tes dépenses."
@@ -442,7 +442,7 @@ export default function Settings() {
           </button>
           <button
             type="button"
-            className="btn btn-ghost text-coral"
+            className="btn btn-ghost text-coral-text"
             onClick={() => {
               setDeleteOpen(true);
               setDeleteConfirmed(false);

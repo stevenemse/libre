@@ -17,7 +17,7 @@ function Splash({ label = 'On prépare ton espace…' }: { label?: string }) {
   return (
     <div className="flex min-h-[70dvh] flex-col items-center justify-center gap-5">
       <Logo size={30} />
-      <div className="h-1 w-24 overflow-hidden rounded-full bg-white/10">
+      <div className="h-1 w-24 overflow-hidden rounded-full bg-line">
         <div className="h-full w-1/2 animate-[shimmer_1.2s_linear_infinite] rounded-full bg-accent" />
       </div>
       <p className="text-sm text-mist">{label}</p>

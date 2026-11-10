@@ -223,7 +223,7 @@ export function Tour({ open, steps, onDone }: Props) {
       <div
         ref={cardRef}
         tabIndex={-1}
-        className="absolute rounded-[26px] border border-white/10 bg-slate1 p-5 shadow-[0_24px_60px_rgba(0,0,0,0.45)] focus:outline-none"
+        className="absolute rounded-[26px] border border-line bg-slate1 p-5 shadow-[0_24px_60px_rgba(0,0,0,0.45)] focus:outline-none"
         style={cardStyle}
       >
         <div className="flex items-start justify-between gap-3">
@@ -258,7 +258,7 @@ export function Tour({ open, steps, onDone }: Props) {
                 aria-current={dotIndex === index}
                 className={cn(
                   'h-1.5 rounded-full transition-all',
-                  dotIndex === index ? 'w-5 bg-accent' : 'w-1.5 bg-white/25 hover:bg-white/40'
+                  dotIndex === index ? 'w-5 bg-accent' : 'w-1.5 bg-line-strong hover:bg-mist/60'
                 )}
               />
             ))}

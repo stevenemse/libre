@@ -116,7 +116,7 @@ export default function Tips() {
                     <Flame
                       size={18}
                       strokeWidth={1.75}
-                      className={active ? 'shrink-0 text-accent' : 'shrink-0 text-mist/60'}
+                      className={active ? 'shrink-0 text-accent-text' : 'shrink-0 text-mist/60'}
                       aria-hidden="true"
                     />
                   </div>
