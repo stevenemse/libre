@@ -31,7 +31,6 @@ import {
   nextAction,
   num,
   pocketAmounts,
-  savings,
   savingsRate,
   weeklyReview,
 } from '../lib/calc';
@@ -82,8 +81,8 @@ export default function Home() {
     const income = current?.income ?? 0;
     const needs = current?.needs ?? 0;
     const wants = current?.wants ?? 0;
-    const saved = savings(income, needs);
-    const rate = savingsRate(income, needs);
+    const saved = Math.max(0, income - needs - (current?.savingsOut ?? 0));
+    const rate = savingsRate(income, needs + (current?.savingsOut ?? 0));
     const pockets = pocketAmounts(saved, data.allocation);
     const needsForPlanning = needs > 0 ? needs : num(data.profile.avg_needs);
     const emergencyGoal = emergencyTarget(needsForPlanning, data.profile.emergency_months);
@@ -147,7 +146,12 @@ export default function Home() {
   const goalRate = num(data.profile.savings_rate_goal) / 100;
   const rateProgress = goalRate > 0 ? derived.rate / goalRate : 0;
   const firstName = data.profile.first_name || session?.user.email?.split('@')[0] || '';
-  const emergencySaved = num(data.emergency.amount_saved);
+  const emergencySaved = Math.max(
+    num(data.emergency.amount_saved),
+    data.goals
+      .filter((goal) => goal.pocket === 'protection' || /urgence/i.test(goal.name))
+      .reduce((sum, goal) => sum + num(goal.current_amount), 0)
+  );
   const emergencyProgress = derived.emergencyGoal > 0 ? emergencySaved / derived.emergencyGoal : 0;
   const allocationTotal =
     num(data.allocation.pct_subsistence) +
@@ -232,11 +236,15 @@ export default function Home() {
                   ? `${formatPercent(derived.rate)} de tes revenus du mois`
                   : 'Ajoute un revenu pour calculer ton taux'}
               </p>
-              {data.transactions.length === 0 ? (
-                <p className="mt-1 text-[12px] text-ink/55">
-                  Estimation à partir de tes moyennes d'inscription.
-                </p>
-              ) : null}
+              {(() => {
+                const last = derived?.summaries?.[derived.summaries.length - 1];
+                return (last?.incomeEstimated ?? 0) > 0 || (last?.needsEstimated ?? 0) > 0 ? (
+                  <p className="mt-1 text-[12px] text-ink/55">
+                    Revenu {formatAmount(last?.incomeEstimated ?? 0, currency)} estimé · Besoins{' '}
+                    {formatAmount(last?.needsEstimated ?? 0, currency)} estimés ce mois.
+                  </p>
+                ) : null;
+              })()}
               {derived.hasVariableIncome && derived.variableBase.median > 0 ? (
                 <p className="mt-1 text-[12px] text-ink/55">
                   Revenus variables : base de calcul{' '}

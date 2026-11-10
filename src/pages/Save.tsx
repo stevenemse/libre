@@ -140,7 +140,7 @@ export default function Save() {
   const [goalName, setGoalName] = useState('');
   const [goalTarget, setGoalTarget] = useState('');
   const [goalDate, setGoalDate] = useState('');
-  const [goalPocket, setGoalPocket] = useState<Goal['pocket']>('assets');
+  const [goalPocket, setGoalPocket] = useState<Goal['pocket']>(null);
   const [goalError, setGoalError] = useState<string | null>(null);
   const [funding, setFunding] = useState<Goal | null>(null);
   const [fundAmount, setFundAmount] = useState('');
@@ -168,6 +168,9 @@ export default function Save() {
       needs: 0,
       wants: 0,
       savings: 0,
+      savingsOut: 0,
+      incomeEstimated: 0,
+      needsEstimated: 0,
     };
     const monthTransactions = data.transactions
       .filter((tx) => tx.occurred_on.slice(0, 7) === month)
@@ -180,7 +183,7 @@ export default function Save() {
 
   const currency = data.profile.currency;
   const goalRate = num(data.profile.savings_rate_goal) / 100;
-  const rate = savingsRate(derived.selected.income, derived.selected.needs);
+  const rate = savingsRate(derived.selected.income, derived.selected.needs + derived.selected.savingsOut);
   const coach = coachMessage(
     derived.selected.income,
     derived.selected.needs,
@@ -217,7 +220,7 @@ export default function Save() {
       setGoalName('');
       setGoalTarget('');
       setGoalDate('');
-      setGoalPocket('assets');
+      setGoalPocket(null);
     } catch (err) {
       setGoalError(err instanceof Error ? err.message : 'Enregistrement impossible.');
     }

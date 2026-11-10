@@ -147,7 +147,7 @@ export default function Freedom() {
     );
     const current = summaries.find((item) => item.month === currentMonthKey());
     const monthlyNeeds = current?.needs || num(data.profile.avg_needs);
-    const monthlySavings = savings(current?.income ?? 0, current?.needs ?? 0);
+    const monthlySavings = Math.max(0, savings(current?.income ?? 0, current?.needs ?? 0) - (current?.savingsOut ?? 0));
     const pockets = pocketAmounts(monthlySavings, data.allocation);
     const capital = data.assets.reduce((sum, asset) => sum + num(asset.value), 0);
     return { needs: monthlyNeeds, contribution: pockets.assets, capital };

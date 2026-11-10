@@ -387,13 +387,30 @@ export function useContributeGoal(userId: string | undefined) {
       if (!userId) throw new Error('Session expirée');
       const { data: goal, error: readError } = await supabase
         .from('goals')
-        .select('current_amount')
+        .select('current_amount, name')
         .eq('id', id)
         .single();
       if (readError) throw new Error(readError.message);
       const next = Math.max(0, Number(goal?.current_amount ?? 0) + amount);
       const { error } = await supabase.from('goals').update({ current_amount: next }).eq('id', id);
       if (error) throw new Error(error.message);
+
+      // Le versement devient une vraie sortie d'épargne : on crée une
+      // transaction liée à l'objectif pour que l'argent ne soit plus
+      // disponible dans l'épargne du mois.
+      const { error: txError } = await supabase.from('transactions').insert({
+        user_id: userId,
+        type: 'expense',
+        amount,
+        category_id: null,
+        goal_id: id,
+        occurred_on: new Date().toISOString().slice(0, 10),
+        note: `Versement : ${goal?.name ?? 'objectif'}`,
+        recurrence: 'none',
+        parent_tx_id: null,
+        income_kind: null,
+      });
+      if (txError) throw new Error(txError.message);
     },
     onSuccess: () => invalidate(userId),
   });

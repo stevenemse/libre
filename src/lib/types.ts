@@ -64,6 +64,7 @@ export interface Transaction {
   recurrence: Recurrence;
   parent_tx_id: string | null;
   income_kind: IncomeKind | null;
+  goal_id: string | null;
   created_at: string;
 }
 
@@ -211,6 +212,12 @@ export interface MonthSummary {
   needs: number;
   wants: number;
   savings: number;
+  /** Argent mis de côté pour des objectifs (versements), déduit de l'épargne du mois. */
+  savingsOut: number;
+  /** Part du revenu qui vient des moyennes d'inscription (0 si mois réel). */
+  incomeEstimated: number;
+  /** Part des besoins qui vient des moyennes d'inscription (plancher déclaré). */
+  needsEstimated: number;
 }
 
 /** Agrégats du panel administrateur (aucune donnée financière individuelle). */

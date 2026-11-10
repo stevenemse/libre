@@ -98,7 +98,7 @@ export default function Invest() {
     const current = summaries.find((item) => item.month === currentMonthKey());
     const income = current?.income ?? 0;
     const needs = current?.needs ?? 0;
-    const monthlySavings = savings(income, needs);
+    const monthlySavings = Math.max(0, savings(income, needs) - (current?.savingsOut ?? 0));
     const planningNeeds = needs > 0 ? needs : num(data.profile.avg_needs);
     const target = emergencyTarget(planningNeeds, data.profile.emergency_months);
     const assetsValue = data.assets.reduce((sum, asset) => sum + num(asset.value), 0);

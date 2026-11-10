@@ -165,36 +165,62 @@ export function monthlySummaries(
   monthsBack = 12,
   now = new Date()
 ): MonthSummary[] {
-  const buckets = new Map<string, MonthSummary>();
+  const currentKey = currentMonthKey(now);
+  const fallbackIncome = Math.max(0, num(fallback.income));
+  const fallbackNeeds = Math.max(0, num(fallback.needs));
+
+  // On enregistre d'abord les montants réellement saisis, mois par mois.
+  const recorded = new Map<
+    string,
+    { income: number; needs: number; wants: number; savingsOut: number }
+  >();
+  const buckets: string[] = [];
   for (let i = monthsBack - 1; i >= 0; i -= 1) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-    buckets.set(key, { month: key, income: 0, needs: 0, wants: 0, savings: 0 });
+    buckets.push(key);
+    recorded.set(key, { income: 0, needs: 0, wants: 0, savingsOut: 0 });
   }
   for (const tx of transactions) {
     const key = tx.occurred_on.slice(0, 7);
-    const bucket = buckets.get(key);
+    const bucket = recorded.get(key);
     if (!bucket) continue;
     const amount = num(tx.amount);
     if (tx.type === 'income') {
       bucket.income += amount;
+    } else if (tx.goal_id) {
+      // Versement sur objectif : sort de l'épargne, sans gonfler les besoins.
+      bucket.savingsOut += amount;
     } else {
       const kind = tx.category_id ? categoryKinds.get(tx.category_id) : null;
       if (kind === 'need') bucket.needs += amount;
       else if (kind === 'want') bucket.wants += amount;
     }
   }
-  const list = [...buckets.values()];
-  // Si aucune transaction n'existe, utiliser les moyennes de l'onboarding
-  if (transactions.length === 0) {
-    return list.map((m) => ({
-      ...m,
-      income: fallback.income,
-      needs: fallback.needs,
-      savings: savings(fallback.income, fallback.needs),
-    }));
-  }
-  return list.map((m) => ({ ...m, savings: savings(m.income, m.needs) }));
+
+  return buckets.map((key) => {
+    const r = recorded.get(key)!;
+    const isCurrent = key === currentKey;
+    // Mois courant : on garde les moyennes déclarées comme plancher, pour
+    // éviter qu'une seule saisie transforme l'utilisateur en champion.
+    // Les mois passés restent à ce qui a réellement été enregistré.
+    const incomeEstimated = isCurrent && r.income <= 0 ? fallbackIncome : 0;
+    const income = r.income > 0 ? r.income : isCurrent ? fallbackIncome : 0;
+    const needsEstimated =
+      isCurrent && fallbackNeeds > r.needs ? fallbackNeeds - r.needs : 0;
+    const needs = isCurrent ? Math.max(r.needs, fallbackNeeds) : r.needs;
+    const savingsAmount = Math.max(0, income - needs - r.savingsOut);
+    return {
+      month: key,
+      income,
+      needs,
+      wants: r.wants,
+      savings: savingsAmount,
+      savingsOut: r.savingsOut,
+      incomeEstimated,
+      needsEstimated,
+    };
+  });
 }
 
 export const currentMonthKey = (now = new Date()): string =>

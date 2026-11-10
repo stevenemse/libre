@@ -31,6 +31,7 @@ const tx = (patch: Partial<Transaction> & Pick<Transaction, 'occurred_on' | 'amo
   recurrence: 'none',
   parent_tx_id: null,
   income_kind: null,
+  goal_id: null,
   created_at: '',
   ...patch,
 });
@@ -162,15 +163,15 @@ describe('synthèse mensuelle', () => {
     const transactions: Transaction[] = [
       {
         id: '1', user_id: 'u', category_id: 'c-need', type: 'income', amount: 300_000,
-        occurred_on: '2026-10-02', note: null, recurrence: 'none', parent_tx_id: null, income_kind: null, created_at: '',
+        occurred_on: '2026-10-02', note: null, recurrence: 'none', parent_tx_id: null, income_kind: null, goal_id: null, created_at: "",
       },
       {
         id: '2', user_id: 'u', category_id: 'c-need', type: 'expense', amount: 100_000,
-        occurred_on: '2026-10-05', note: null, recurrence: 'none', parent_tx_id: null, income_kind: null, created_at: '',
+        occurred_on: '2026-10-05', note: null, recurrence: 'none', parent_tx_id: null, income_kind: null, goal_id: null, created_at: "",
       },
       {
         id: '3', user_id: 'u', category_id: 'c-want', type: 'expense', amount: 30_000,
-        occurred_on: '2026-10-09', note: null, recurrence: 'none', parent_tx_id: null, income_kind: null, created_at: '',
+        occurred_on: '2026-10-09', note: null, recurrence: 'none', parent_tx_id: null, income_kind: null, goal_id: null, created_at: "",
       },
     ];
     const summaries = monthlySummaries(
