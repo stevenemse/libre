@@ -1,6 +1,7 @@
 export type TxType = 'income' | 'expense';
 export type NeedKind = 'need' | 'want';
 export type Pocket = 'subsistence' | 'assets' | 'protection';
+export type DebtDirection = 'owed_by_me' | 'owed_to_me';
 export type Recurrence = 'none' | 'weekly' | 'monthly';
 export type TipCategory = 'Épargner' | 'Investir' | 'Protéger' | 'Mentalité';
 export type TipLevel = 'Débutant' | 'Intermédiaire' | 'Avancé';
@@ -101,6 +102,19 @@ export interface Asset {
   created_at: string;
 }
 
+export interface Debt {
+  id: string;
+  user_id: string;
+  title: string;
+  direction: DebtDirection;
+  counterparty: string | null;
+  balance: number;
+  monthly_payment: number;
+  interest_rate: number | null;
+  due_date: string | null;
+  created_at: string;
+}
+
 export interface Goal {
   id: string;
   user_id: string;
@@ -179,6 +193,7 @@ export interface Workspace {
   transactions: Transaction[];
   protection: ProtectionItem[];
   assets: Asset[];
+  debts: Debt[];
   goals: Goal[];
   simulations: Simulation[];
   tips: Tip[];
@@ -215,6 +230,8 @@ export interface MonthSummary {
   savings: number;
   /** Argent mis de côté pour des objectifs (versements), déduit de l'épargne du mois. */
   savingsOut: number;
+  /** Remboursements de dettes du mois courant, déduits de l'épargne. */
+  debtPayments: number;
   /** Part du revenu qui vient des moyennes d'inscription (0 si mois réel). */
   incomeEstimated: number;
   /** Part des besoins qui vient des moyennes d'inscription (plancher déclaré). */

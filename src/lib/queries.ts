@@ -10,6 +10,7 @@ import type {
   Asset,
   Category,
   Challenge,
+  Debt,
   EmergencyFund,
   Goal,
   NotificationSettings,
@@ -37,6 +38,7 @@ async function loadWorkspace(userId: string): Promise<Workspace> {
     transactions,
     protection,
     assets,
+    debts,
     goals,
     simulations,
     tips,
@@ -57,6 +59,7 @@ async function loadWorkspace(userId: string): Promise<Workspace> {
       .limit(3000),
     supabase.from('protection_checklist').select('*').order('item_key'),
     supabase.from('assets').select('*').order('created_at', { ascending: false }),
+    supabase.from('debts').select('*').order('created_at', { ascending: false }),
     supabase
       .from('goals')
       .select('*')
@@ -78,6 +81,7 @@ async function loadWorkspace(userId: string): Promise<Workspace> {
     transactions,
     protection,
     assets,
+    debts,
     goals,
     simulations,
     tips,
@@ -119,6 +123,7 @@ async function loadWorkspace(userId: string): Promise<Workspace> {
     transactions: (transactions.data ?? []) as Transaction[],
     protection: (protection.data ?? []) as ProtectionItem[],
     assets: (assets.data ?? []) as Asset[],
+    debts: (debts.data ?? []) as Debt[],
     goals: (goals.data ?? []) as Goal[],
     simulations: (simulations.data ?? []) as Simulation[],
     tips: (tips.data ?? []) as Tip[],
@@ -333,6 +338,41 @@ export function useAddAsset(userId: string | undefined) {
     mutationFn: async (input: Omit<Asset, 'id' | 'user_id' | 'created_at'>) => {
       if (!userId) throw new Error('Session expirée');
       const { error } = await supabase.from('assets').insert({ ...input, user_id: userId });
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => invalidate(userId),
+  });
+}
+
+export function useSaveDebt(userId: string | undefined) {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: async (input: {
+      id?: string;
+      title: string;
+      direction: Debt['direction'];
+      counterparty: string | null;
+      balance: number;
+      monthly_payment: number;
+      interest_rate: number | null;
+      due_date: string | null;
+    }) => {
+      if (!userId) throw new Error('Session expirée');
+      const { id, ...payload } = input;
+      const { error } = id
+        ? await supabase.from('debts').update(payload).eq('id', id)
+        : await supabase.from('debts').insert({ ...payload, user_id: userId });
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => invalidate(userId),
+  });
+}
+
+export function useDeleteDebt(userId: string | undefined) {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('debts').delete().eq('id', id);
       if (error) throw new Error(error.message);
     },
     onSuccess: () => invalidate(userId),

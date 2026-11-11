@@ -7,6 +7,7 @@ import {
   CalendarDays,
   ChevronRight,
   Compass,
+  CreditCard,
   PiggyBank,
   Plus,
   ShieldCheck,
@@ -23,13 +24,17 @@ import { currencyLabel, formatAmount, formatDay, formatPercent, initials } from 
 import {
   coachMessage,
   currentMonthKey,
+  debtBalanceTotal,
+  debtMonthlyTotal,
   emergencyTarget,
   freedomCapital,
   incomeMedian,
   monthLabel,
   monthlySummaries,
+  netWorth,
   nextAction,
   num,
+  receivableTotal,
   pocketAmounts,
   savingsRate,
   weeklyReview,
@@ -69,10 +74,15 @@ export default function Home() {
     const kinds = new Map<string, 'need' | 'want' | null>(
       data.categories.map((category) => [category.id, category.kind])
     );
+    const debtMonthly = debtMonthlyTotal(data.debts);
     const summaries = monthlySummaries(
       data.transactions,
       kinds,
-      { income: num(data.profile.avg_income), needs: num(data.profile.avg_needs) },
+      {
+        income: num(data.profile.avg_income),
+        needs: num(data.profile.avg_needs),
+        debtPayments: debtMonthly,
+      },
       12
     );
     const current = summaries[summaries.length - 1];
@@ -81,10 +91,14 @@ export default function Home() {
     const income = current?.income ?? 0;
     const needs = current?.needs ?? 0;
     const wants = current?.wants ?? 0;
-    const saved = Math.max(0, income - needs - (current?.savingsOut ?? 0));
-    const rate = savingsRate(income, needs + (current?.savingsOut ?? 0));
+    const saved = current?.savings ?? 0;
+    const rate = savingsRate(
+      income,
+      needs + (current?.savingsOut ?? 0) + (current?.debtPayments ?? 0)
+    );
     const pockets = pocketAmounts(saved, data.allocation);
-    const needsForPlanning = needs > 0 ? needs : num(data.profile.avg_needs);
+    const needsForPlanning =
+      (needs > 0 ? needs : num(data.profile.avg_needs)) + debtMonthly;
     const emergencyGoal =
       data.emergency.target_amount != null
         ? num(data.emergency.target_amount)
@@ -127,6 +141,10 @@ export default function Home() {
       rate,
       pockets,
       needsForPlanning,
+      debtMonthly,
+      debtBalance: debtBalanceTotal(data.debts),
+      receivable: receivableTotal(data.debts),
+      netAssets: netWorth(assetsValue, data.debts),
       emergencyGoal,
       target,
       assetsValue,
@@ -345,11 +363,12 @@ export default function Home() {
       </div>
 
       {/* Chiffres du mois */}
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {[
           { label: 'Revenus du mois', value: derived.income, icon: TrendingUp },
           { label: 'Besoins', value: derived.needs, icon: TrendingDown },
           { label: 'Envies', value: derived.wants, icon: Sparkles },
+          { label: 'Remboursements', value: derived.debtMonthly, icon: CreditCard },
         ].map((item) => (
           <div key={item.label} className="card p-4">
             <div className="flex items-center justify-between">
@@ -363,6 +382,46 @@ export default function Home() {
           </div>
         ))}
       </div>
+
+      {/* Dettes et patrimoine net */}
+      <section className="card p-5 sm:p-6">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="label">Dettes et créances</p>
+            <h2 className="mt-1 text-[22px]">
+              {derived.debtBalance > 0
+                ? `${formatAmount(derived.debtBalance, currency)} restent à rembourser`
+                : 'Aucune dette enregistrée'}
+            </h2>
+          </div>
+          <Link to="/epargner" className="btn btn-secondary h-10 text-[13px]">
+            Gérer
+            <ArrowRight size={15} strokeWidth={2} />
+          </Link>
+        </div>
+
+        <dl className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {[
+            { label: 'Dettes restantes', value: derived.debtBalance },
+            { label: 'Mensualités', value: derived.debtMonthly },
+            { label: 'Créances', value: derived.receivable },
+            { label: 'Patrimoine net', value: derived.netAssets },
+          ].map((item) => (
+            <div key={item.label} className="rounded-2xl bg-slate2/70 p-3">
+              <dt className="text-[11px] text-mist">{item.label}</dt>
+              <dd className="num mt-1 text-[15px] font-semibold">
+                {formatAmount(item.value, currency)}
+              </dd>
+            </div>
+          ))}
+        </dl>
+
+        <p className="mt-3 text-[12px] leading-relaxed text-mist">
+          {derived.debtMonthly > 0
+            ? 'Tes mensualités de dette sont déjà déduites de ton épargne du mois et comptées dans tes besoins de planification (fonds d’urgence, capital de liberté).'
+            : 'Déclare un crédit ou un prêt pour que ta marge réelle et ton patrimoine net soient justes.'}
+        </p>
+      </section>
 
       {/* Bilan de la semaine */}
       <section data-tour="weekly" className="card p-5 sm:p-6">

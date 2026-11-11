@@ -57,6 +57,13 @@ export const TOUR_STEPS: TourStep[] = [
     body: 'Nomme un projet, donne un montant cible, verse quand tu peux. La progression suit toute seule et l’objectif reste visible dans ta prochaine action.',
   },
   {
+    id: 'debts',
+    route: '/epargner',
+    target: '[data-tour="debts"]',
+    title: 'Dettes et créances',
+    body: 'Déclare ce que tu dois et ce qu’on te doit. Les mensualités réduisent ta marge du mois et comptent dans ton fonds d’urgence et ton capital de liberté ; le solde restant donne ton patrimoine net.',
+  },
+  {
     id: 'assets',
     route: '/investir',
     target: '[data-tour="assets"]',

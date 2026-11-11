@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
   coachMessage,
+  debtBalanceTotal,
+  debtMonthlyTotal,
   emergencyTarget,
+  netWorth,
+  receivableTotal,
   freedomCapital,
   goalProgress,
   incomeMedian,
@@ -20,7 +24,7 @@ import {
   savings,
   savingsRate,
 } from './calc';
-import type { Allocation, Transaction } from './types';
+import type { Allocation, Debt, Transaction } from './types';
 
 const tx = (patch: Partial<Transaction> & Pick<Transaction, 'occurred_on' | 'amount'>): Transaction => ({
   id: Math.random().toString(36).slice(2),
@@ -32,6 +36,20 @@ const tx = (patch: Partial<Transaction> & Pick<Transaction, 'occurred_on' | 'amo
   parent_tx_id: null,
   income_kind: null,
   goal_id: null,
+  created_at: '',
+  ...patch,
+});
+
+const debt = (patch: Partial<Debt> = {}): Debt => ({
+  id: Math.random().toString(36).slice(2),
+  user_id: 'u',
+  title: 'Dette',
+  direction: 'owed_by_me',
+  counterparty: null,
+  balance: 0,
+  monthly_payment: 0,
+  interest_rate: null,
+  due_date: null,
   created_at: '',
   ...patch,
 });
@@ -382,5 +400,59 @@ describe('objectifs', () => {
 
   it('renvoie 0 pour une cible nulle', () => {
     expect(goalProgress(10_000, 0)).toBe(0);
+  });
+});
+
+describe('dettes et patrimoine net', () => {
+  const debts: Debt[] = [
+    debt({ balance: 400_000, monthly_payment: 40_000 }),
+    debt({ balance: 100_000, monthly_payment: 10_000 }),
+    debt({ direction: 'owed_to_me', title: 'Prêt à un ami', balance: 75_000 }),
+  ];
+
+  it('additionne seulement les mensualités des dettes que je dois', () => {
+    expect(debtMonthlyTotal(debts)).toBe(50_000);
+  });
+
+  it('sépare le solde dû des créances', () => {
+    expect(debtBalanceTotal(debts)).toBe(500_000);
+    expect(receivableTotal(debts)).toBe(75_000);
+  });
+
+  it('patrimoine net = assets + créances − dettes', () => {
+    expect(netWorth(1_000_000, debts)).toBe(575_000);
+  });
+
+  it('peut être négatif quand les dettes dépassent les assets', () => {
+    expect(netWorth(100_000, debts)).toBe(-325_000);
+  });
+
+  it('déduit les mensualités de l’épargne du mois courant', () => {
+    const now = new Date(2026, 4, 15);
+    const rows = [tx({ occurred_on: '2026-05-02', amount: 250_000, type: 'income' })];
+    const summaries = monthlySummaries(
+      rows,
+      new Map(),
+      { income: 250_000, needs: 100_000, debtPayments: 50_000 },
+      2,
+      now
+    );
+    const current = summaries[summaries.length - 1];
+    expect(current.debtPayments).toBe(50_000);
+    expect(current.savings).toBe(100_000);
+  });
+
+  it('laisse les mois passés sans remboursement automatique', () => {
+    const now = new Date(2026, 4, 15);
+    const rows = [tx({ occurred_on: '2026-04-02', amount: 250_000, type: 'income' })];
+    const summaries = monthlySummaries(
+      rows,
+      new Map(),
+      { income: 0, needs: 0, debtPayments: 50_000 },
+      2,
+      now
+    );
+    expect(summaries[0].debtPayments).toBe(0);
+    expect(summaries[0].savings).toBe(250_000);
   });
 });

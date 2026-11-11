@@ -1,5 +1,6 @@
 import type {
   Allocation,
+  Debt,
   MonthSummary,
   NeedsBreakdown,
   NextAction,
@@ -54,6 +55,34 @@ export function pocketAmounts(savingsAmount: number, allocation: Allocation) {
     assets: (savingsAmount * num(allocation.pct_assets)) / 100,
     protection: (savingsAmount * num(allocation.pct_protection)) / 100,
   };
+}
+
+/** Total des mensualités des dettes que je dois (engagement récurrent). */
+export function debtMonthlyTotal(debts: Debt[]): number {
+  return debts
+    .filter((debt) => debt.direction === 'owed_by_me')
+    .reduce((sum, debt) => sum + Math.max(0, num(debt.monthly_payment)), 0);
+}
+
+/** Solde restant dû sur mes dettes. */
+export function debtBalanceTotal(debts: Debt[]): number {
+  return debts
+    .filter((debt) => debt.direction === 'owed_by_me')
+    .reduce((sum, debt) => sum + Math.max(0, num(debt.balance)), 0);
+}
+
+/** Total des créances : ce qu'on me doit encore. */
+export function receivableTotal(debts: Debt[]): number {
+  return debts
+    .filter((debt) => debt.direction === 'owed_to_me')
+    .reduce((sum, debt) => sum + Math.max(0, num(debt.balance)), 0);
+}
+
+/** Patrimoine net = assets + créances − dettes. Peut être négatif. */
+export function netWorth(assetsValue: number, debts: Debt[]): number {
+  return round2(
+    Math.max(0, num(assetsValue)) + receivableTotal(debts) - debtBalanceTotal(debts)
+  );
 }
 
 /** Cible du fonds d'urgence = besoins du mois × mois d'urgence. */
@@ -161,13 +190,14 @@ export function monthsToCoverNeeds(
 export function monthlySummaries(
   transactions: Transaction[],
   categoryKinds: Map<string, 'need' | 'want' | null>,
-  fallback: { income: number; needs: number },
+  fallback: { income: number; needs: number; debtPayments?: number },
   monthsBack = 12,
   now = new Date()
 ): MonthSummary[] {
   const currentKey = currentMonthKey(now);
   const fallbackIncome = Math.max(0, num(fallback.income));
   const fallbackNeeds = Math.max(0, num(fallback.needs));
+  const fallbackDebt = Math.max(0, num(fallback.debtPayments));
 
   // On enregistre d'abord les montants réellement saisis, mois par mois.
   const recorded = new Map<
@@ -209,7 +239,10 @@ export function monthlySummaries(
     const needsEstimated =
       isCurrent && fallbackNeeds > r.needs ? fallbackNeeds - r.needs : 0;
     const needs = isCurrent ? Math.max(r.needs, fallbackNeeds) : r.needs;
-    const savingsAmount = Math.max(0, income - needs - r.savingsOut);
+    // Remboursements de dettes : engagement du mois courant uniquement, comme
+    // le plancher déclaré. Les mois passés gardent ce qui a été saisi.
+    const debtPayments = isCurrent ? fallbackDebt : 0;
+    const savingsAmount = Math.max(0, income - needs - r.savingsOut - debtPayments);
     return {
       month: key,
       income,
@@ -217,6 +250,7 @@ export function monthlySummaries(
       wants: r.wants,
       savings: savingsAmount,
       savingsOut: r.savingsOut,
+      debtPayments,
       incomeEstimated,
       needsEstimated,
     };

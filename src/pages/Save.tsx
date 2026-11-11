@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import {
   ArrowDownLeft,
   ArrowUpRight,
+  CreditCard,
   Pencil,
   Plus,
   Receipt,
@@ -13,8 +14,10 @@ import { useAuth } from '../lib/auth';
 import {
   useAddGoal,
   useContributeGoal,
+  useDeleteDebt,
   useDeleteGoal,
   useDeleteTransaction,
+  useSaveDebt,
   useWorkspace,
 } from '../lib/queries';
 import { useTxSheet } from '../components/AppShell';
@@ -33,16 +36,20 @@ import { currencyLabel, formatAmount, formatDate, formatPercent } from '../lib/f
 import {
   coachMessage,
   currentMonthKey,
+  debtBalanceTotal,
+  debtMonthlyTotal,
   goalProgress,
   monthLabel,
   monthlySummaries,
+  netWorth,
   num,
+  receivableTotal,
   savingsRate,
   shortMonthLabel,
 } from '../lib/calc';
 import { categoryIcon } from '../lib/icons';
 import { TransactionSheet } from '../components/TransactionSheet';
-import type { Goal, Transaction, TxType } from '../lib/types';
+import type { Debt, Goal, Transaction, TxType } from '../lib/types';
 
 const POCKET_LABEL: Record<string, string> = {
   subsistence: 'Subsistance',
@@ -136,6 +143,8 @@ export default function Save() {
   const addGoal = useAddGoal(userId);
   const contributeGoal = useContributeGoal(userId);
   const deleteGoal = useDeleteGoal(userId);
+  const saveDebt = useSaveDebt(userId);
+  const deleteDebt = useDeleteDebt(userId);
   const [goalOpen, setGoalOpen] = useState(false);
   const [goalName, setGoalName] = useState('');
   const [goalTarget, setGoalTarget] = useState('');
@@ -150,15 +159,30 @@ export default function Save() {
   const [editing, setEditing] = useState<Transaction | null>(null);
   const [editingOpen, setEditingOpen] = useState(false);
 
+  const [debtOpen, setDebtOpen] = useState(false);
+  const [editingDebt, setEditingDebt] = useState<Debt | null>(null);
+  const [debtTitle, setDebtTitle] = useState('');
+  const [debtDirection, setDebtDirection] = useState<Debt['direction']>('owed_by_me');
+  const [debtCounterparty, setDebtCounterparty] = useState('');
+  const [debtBalance, setDebtBalance] = useState('');
+  const [debtMonthly, setDebtMonthly] = useState('');
+  const [debtRate, setDebtRate] = useState('');
+  const [debtError, setDebtError] = useState<string | null>(null);
+
   const derived = useMemo(() => {
     if (!data) return null;
     const kinds = new Map<string, 'need' | 'want' | null>(
       data.categories.map((category) => [category.id, category.kind])
     );
+    const debtMonthly = debtMonthlyTotal(data.debts);
     const summaries = monthlySummaries(
       data.transactions,
       kinds,
-      { income: num(data.profile.avg_income), needs: num(data.profile.avg_needs) },
+      {
+        income: num(data.profile.avg_income),
+        needs: num(data.profile.avg_needs),
+        debtPayments: debtMonthly,
+      },
       12
     );
     const hasMonth = summaries.some((item) => item.month === month);
@@ -169,6 +193,7 @@ export default function Save() {
       wants: 0,
       savings: 0,
       savingsOut: 0,
+      debtPayments: 0,
       incomeEstimated: 0,
       needsEstimated: 0,
     };
@@ -176,14 +201,28 @@ export default function Save() {
       .filter((tx) => tx.occurred_on.slice(0, 7) === month)
       .filter((tx) => (filter === 'all' ? true : tx.type === filter))
       .sort((a, b) => (a.occurred_on < b.occurred_on ? 1 : -1));
-    return { summaries, selected, hasMonth, monthTransactions };
+    const assetsValue = data.assets.reduce((sum, asset) => sum + num(asset.value), 0);
+    return {
+      summaries,
+      selected,
+      hasMonth,
+      monthTransactions,
+      debtMonthly,
+      debtBalance: debtBalanceTotal(data.debts),
+      receivable: receivableTotal(data.debts),
+      assetsValue,
+      netAssets: netWorth(assetsValue, data.debts),
+    };
   }, [data, month, filter]);
 
   if (!data || !derived) return null;
 
   const currency = data.profile.currency;
   const goalRate = num(data.profile.savings_rate_goal) / 100;
-  const rate = savingsRate(derived.selected.income, derived.selected.needs + derived.selected.savingsOut);
+  const rate = savingsRate(
+    derived.selected.income,
+    derived.selected.needs + derived.selected.savingsOut + derived.selected.debtPayments
+  );
   const coach = coachMessage(
     derived.selected.income,
     derived.selected.needs,
@@ -223,6 +262,49 @@ export default function Save() {
       setGoalPocket(null);
     } catch (err) {
       setGoalError(err instanceof Error ? err.message : 'Enregistrement impossible.');
+    }
+  };
+
+  const openDebt = (debt: Debt | null) => {
+    setEditingDebt(debt);
+    setDebtTitle(debt?.title ?? '');
+    setDebtDirection(debt?.direction ?? 'owed_by_me');
+    setDebtCounterparty(debt?.counterparty ?? '');
+    setDebtBalance(debt ? String(num(debt.balance)) : '');
+    setDebtMonthly(debt ? String(num(debt.monthly_payment)) : '');
+    setDebtRate(debt?.interest_rate != null ? String(num(debt.interest_rate)) : '');
+    setDebtError(null);
+    setDebtOpen(true);
+  };
+
+  const submitDebt = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setDebtError(null);
+    const balance = parseAmount(debtBalance);
+    const monthly = parseAmount(debtMonthly);
+    if (!debtTitle.trim()) {
+      setDebtError('Donne un nom à cette dette ou créance.');
+      return;
+    }
+    if (balance <= 0 && monthly <= 0) {
+      setDebtError('Indique au moins un solde restant ou une mensualité.');
+      return;
+    }
+    try {
+      await saveDebt.mutateAsync({
+        id: editingDebt?.id,
+        title: debtTitle.trim(),
+        direction: debtDirection,
+        counterparty: debtCounterparty.trim() || null,
+        balance: Math.max(0, balance),
+        monthly_payment: Math.max(0, monthly),
+        interest_rate: debtRate.trim() ? Math.max(0, parseAmount(debtRate)) : null,
+        due_date: editingDebt?.due_date ?? null,
+      });
+      setDebtOpen(false);
+      setEditingDebt(null);
+    } catch (err) {
+      setDebtError(err instanceof Error ? err.message : 'Enregistrement impossible.');
     }
   };
 
@@ -305,11 +387,12 @@ export default function Save() {
             />
           </div>
 
-          <dl className="mt-6 grid grid-cols-3 gap-3">
+          <dl className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
             {[
               { label: 'Revenus', value: derived.selected.income },
               { label: 'Besoins', value: derived.selected.needs },
               { label: 'Envies', value: derived.selected.wants },
+              { label: 'Remboursements', value: derived.selected.debtPayments },
             ].map((item) => (
               <div key={item.label} className="rounded-2xl bg-slate2/70 p-3">
                 <dt className="text-[11px] text-mist">{item.label}</dt>
@@ -426,6 +509,103 @@ export default function Save() {
               );
             })}
           </ul>
+        )}
+      </section>
+
+      <section data-tour="debts">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-[22px]">Dettes et créances</h2>
+          <button
+            type="button"
+            className="btn btn-secondary h-10 text-[13px]"
+            onClick={() => openDebt(null)}
+          >
+            <Plus size={15} strokeWidth={2} />
+            Nouvelle dette
+          </button>
+        </div>
+
+        {data.debts.length === 0 ? (
+          <EmptyState icon={CreditCard} title="Aucune dette enregistrée">
+            Un crédit, un prêt d'un proche, une avance : déclare-le pour que tes mensualités
+            entrent dans ta marge réelle et ton patrimoine net.
+          </EmptyState>
+        ) : (
+          <>
+            <div className="card mb-3 grid grid-cols-2 gap-3 p-4 sm:grid-cols-4">
+              {[
+                { label: 'Dettes restantes', value: derived.debtBalance },
+                { label: 'Mensualités', value: derived.debtMonthly },
+                { label: 'Créances', value: derived.receivable },
+                { label: 'Patrimoine net', value: derived.netAssets },
+              ].map((item) => (
+                <div key={item.label} className="rounded-2xl bg-slate2/70 p-3">
+                  <p className="text-[11px] text-mist">{item.label}</p>
+                  <p className="num mt-1 text-[15px] font-semibold">
+                    {formatAmount(item.value, currency)}
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            <ul className="grid gap-3 sm:grid-cols-2">
+              {data.debts.map((debt) => {
+                const owedByMe = debt.direction === 'owed_by_me';
+                return (
+                  <li key={debt.id} className="card p-4 sm:p-5">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-[15px] font-semibold">{debt.title}</p>
+                        <p className="mt-0.5 text-[12px] text-mist">
+                          {owedByMe ? 'Je dois' : 'On me doit'}
+                          {debt.counterparty ? ` · ${debt.counterparty}` : ''}
+                          {debt.interest_rate != null
+                            ? ` · ${formatPercent(num(debt.interest_rate) / 100, 1)}`
+                            : ''}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          className="flex h-9 w-9 items-center justify-center rounded-full text-mist transition-colors hover:bg-veil hover:text-snow"
+                          onClick={() => openDebt(debt)}
+                          aria-label={`Modifier ${debt.title}`}
+                        >
+                          <Pencil size={15} strokeWidth={1.75} />
+                        </button>
+                        <button
+                          type="button"
+                          className="flex h-9 w-9 items-center justify-center rounded-full text-mist transition-colors hover:bg-coral/10 hover:text-coral-text"
+                          onClick={() => {
+                            if (window.confirm(`Supprimer « ${debt.title} » ?`)) {
+                              deleteDebt.mutate(debt.id);
+                            }
+                          }}
+                          aria-label={`Supprimer ${debt.title}`}
+                        >
+                          <Trash2 size={15} strokeWidth={1.75} />
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="mt-3 flex items-baseline justify-between gap-3">
+                      <p className="num text-[20px] font-semibold leading-none">
+                        {formatAmount(num(debt.balance), currency)}
+                        <span className="ml-1.5 text-[12px] font-medium text-mist">
+                          {owedByMe ? 'restants' : 'à recevoir'}
+                        </span>
+                      </p>
+                      {owedByMe && num(debt.monthly_payment) > 0 ? (
+                        <p className="num text-[13px] font-medium text-mist">
+                          {formatAmount(num(debt.monthly_payment), currency)} / mois
+                        </p>
+                      ) : null}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </>
         )}
       </section>
 
@@ -646,6 +826,122 @@ export default function Save() {
             disabled={contributeGoal.isPending}
           >
             {contributeGoal.isPending ? 'Enregistrement…' : 'Ajouter à cet objectif'}
+          </button>
+        </form>
+      </Sheet>
+
+      <Sheet
+        open={debtOpen}
+        onClose={() => {
+          setDebtOpen(false);
+          setEditingDebt(null);
+        }}
+        title={editingDebt ? 'Modifier la dette' : 'Nouvelle dette ou créance'}
+        subtitle="Son solde et sa mensualité entrent dans tes calculs."
+      >
+        <form onSubmit={submitDebt} className="space-y-4">
+          <div>
+            <span className="field-label">Sens</span>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                className="pill"
+                aria-pressed={debtDirection === 'owed_by_me'}
+                onClick={() => setDebtDirection('owed_by_me')}
+              >
+                Je dois
+              </button>
+              <button
+                type="button"
+                className="pill"
+                aria-pressed={debtDirection === 'owed_to_me'}
+                onClick={() => setDebtDirection('owed_to_me')}
+              >
+                On me doit
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label htmlFor="debt-title" className="field-label">
+              Nom
+            </label>
+            <input
+              id="debt-title"
+              className="field"
+              value={debtTitle}
+              onChange={(event) => setDebtTitle(event.target.value)}
+              placeholder="Ex. Crédit moto"
+              maxLength={60}
+            />
+          </div>
+
+          <div>
+            <label htmlFor="debt-counterparty" className="field-label">
+              Prêteur ou débiteur <span className="font-normal text-mist">(facultatif)</span>
+            </label>
+            <input
+              id="debt-counterparty"
+              className="field"
+              value={debtCounterparty}
+              onChange={(event) => setDebtCounterparty(event.target.value)}
+              placeholder="Ex. Banque, un proche"
+              maxLength={60}
+            />
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label htmlFor="debt-balance" className="field-label">
+                Solde restant
+              </label>
+              <input
+                id="debt-balance"
+                className="field"
+                inputMode="decimal"
+                value={debtBalance}
+                onChange={(event) => setDebtBalance(event.target.value)}
+                placeholder="0"
+              />
+            </div>
+            <div>
+              <label htmlFor="debt-monthly" className="field-label">
+                Mensualité
+              </label>
+              <input
+                id="debt-monthly"
+                className="field"
+                inputMode="decimal"
+                value={debtMonthly}
+                onChange={(event) => setDebtMonthly(event.target.value)}
+                placeholder="0"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label htmlFor="debt-rate" className="field-label">
+              Taux d'intérêt annuel <span className="font-normal text-mist">(facultatif)</span>
+            </label>
+            <div className="relative">
+              <input
+                id="debt-rate"
+                className="field pr-10"
+                inputMode="decimal"
+                value={debtRate}
+                onChange={(event) => setDebtRate(event.target.value)}
+                placeholder="0"
+              />
+              <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-[12px] text-mist">
+                %
+              </span>
+            </div>
+          </div>
+
+          <FieldError>{debtError}</FieldError>
+
+          <button type="submit" className="btn btn-primary w-full" disabled={saveDebt.isPending}>
+            {saveDebt.isPending ? 'Enregistrement…' : editingDebt ? 'Mettre à jour' : 'Enregistrer'}
           </button>
         </form>
       </Sheet>

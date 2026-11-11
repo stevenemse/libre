@@ -30,12 +30,14 @@ import {
 import { currencyLabel, formatAmount, formatPercent, todayISO } from '../lib/format';
 import {
   currentMonthKey,
+  debtBalanceTotal,
+  debtMonthlyTotal,
   emergencyTarget,
   monthlySummaries,
   monthsToEmergencyFund,
+  netWorth,
   num,
   pocketAmounts,
-  savings,
 } from '../lib/calc';
 
 const PRESETS = [
@@ -89,24 +91,37 @@ export default function Invest() {
     const kinds = new Map<string, 'need' | 'want' | null>(
       data.categories.map((category) => [category.id, category.kind])
     );
+    const debtMonthly = debtMonthlyTotal(data.debts);
     const summaries = monthlySummaries(
       data.transactions,
       kinds,
-      { income: num(data.profile.avg_income), needs: num(data.profile.avg_needs) },
+      {
+        income: num(data.profile.avg_income),
+        needs: num(data.profile.avg_needs),
+        debtPayments: debtMonthly,
+      },
       12
     );
     const current = summaries.find((item) => item.month === currentMonthKey());
-    const income = current?.income ?? 0;
     const needs = current?.needs ?? 0;
-    const monthlySavings = Math.max(0, savings(income, needs) - (current?.savingsOut ?? 0));
-    const planningNeeds = needs > 0 ? needs : num(data.profile.avg_needs);
+    const monthlySavings = current?.savings ?? 0;
+    const planningNeeds = (needs > 0 ? needs : num(data.profile.avg_needs)) + debtMonthly;
     const target =
       data.emergency.target_amount != null
         ? num(data.emergency.target_amount)
         : emergencyTarget(planningNeeds, data.profile.emergency_months);
     const assetsValue = data.assets.reduce((sum, asset) => sum + num(asset.value), 0);
     const passive = data.assets.reduce((sum, asset) => sum + num(asset.monthly_income), 0);
-    return { monthlySavings, planningNeeds, target, assetsValue, passive };
+    return {
+      monthlySavings,
+      planningNeeds,
+      target,
+      assetsValue,
+      passive,
+      debtMonthly,
+      debtBalance: debtBalanceTotal(data.debts),
+      netAssets: netWorth(assetsValue, data.debts),
+    };
   }, [data]);
 
   if (!data || !derived) return null;
@@ -356,7 +371,7 @@ export default function Invest() {
           </form>
 
           <p className="mt-3 text-[12px] leading-relaxed text-mist">
-            Cible : {data.profile.emergency_months} × tes besoins mensuels ({formatAmount(derived.planningNeeds, currency)}{' '}
+            Cible : {data.profile.emergency_months} × tes besoins mensuels et mensualités de dette ({formatAmount(derived.planningNeeds, currency)}{' '}
             {currencyLabel(currency)}). Avec ta poche protection, tu ajoutes{' '}
             {formatAmount(amounts.protection, currency)} {currencyLabel(currency)} par mois.
           </p>
@@ -428,11 +443,23 @@ export default function Invest() {
         </SectionTitle>
 
         <div className="card p-5 sm:p-6">
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div>
               <p className="label">Valeur totale</p>
               <p className="num mt-1 text-[22px] font-semibold">
                 {formatAmount(derived.assetsValue, currency)}
+              </p>
+            </div>
+            <div>
+              <p className="label">Dettes restantes</p>
+              <p className="num mt-1 text-[22px] font-semibold">
+                {formatAmount(derived.debtBalance, currency)}
+              </p>
+            </div>
+            <div>
+              <p className="label">Patrimoine net</p>
+              <p className="num mt-1 text-[22px] font-semibold">
+                {formatAmount(derived.netAssets, currency)}
               </p>
             </div>
             <div>

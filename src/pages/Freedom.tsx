@@ -6,16 +6,17 @@ import { EmptyState, SectionTitle, cn } from '../components/ui';
 import { currencyLabel, formatAmount, formatPercent } from '../lib/format';
 import {
   currentMonthKey,
+  debtMonthlyTotal,
   freedomCapital,
   monthLabel,
   monthlySummaries,
   monthsToCoverNeeds,
   needsCovered,
+  netWorth,
   num,
   projectCapital,
   projectionSeries,
   pocketAmounts,
-  savings,
 } from '../lib/calc';
 
 function GrowthChart({
@@ -139,17 +140,24 @@ export default function Freedom() {
     const kinds = new Map<string, 'need' | 'want' | null>(
       data.categories.map((category) => [category.id, category.kind])
     );
+    const debtMonthly = debtMonthlyTotal(data.debts);
     const summaries = monthlySummaries(
       data.transactions,
       kinds,
-      { income: num(data.profile.avg_income), needs: num(data.profile.avg_needs) },
+      {
+        income: num(data.profile.avg_income),
+        needs: num(data.profile.avg_needs),
+        debtPayments: debtMonthly,
+      },
       12
     );
     const current = summaries.find((item) => item.month === currentMonthKey());
-    const monthlyNeeds = current?.needs || num(data.profile.avg_needs);
-    const monthlySavings = Math.max(0, savings(current?.income ?? 0, current?.needs ?? 0) - (current?.savingsOut ?? 0));
+    // Les mensualités de dette font partie des besoins à couvrir pour être libre.
+    const monthlyNeeds = (current?.needs || num(data.profile.avg_needs)) + debtMonthly;
+    const monthlySavings = current?.savings ?? 0;
     const pockets = pocketAmounts(monthlySavings, data.allocation);
-    const capital = data.assets.reduce((sum, asset) => sum + num(asset.value), 0);
+    const assetsValue = data.assets.reduce((sum, asset) => sum + num(asset.value), 0);
+    const capital = Math.max(0, netWorth(assetsValue, data.debts));
     return { needs: monthlyNeeds, contribution: pockets.assets, capital };
   }, [data]);
 
