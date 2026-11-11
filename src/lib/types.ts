@@ -66,6 +66,7 @@ export interface Transaction {
   parent_tx_id: string | null;
   income_kind: IncomeKind | null;
   goal_id: string | null;
+  debt_id: string | null;
   created_at: string;
 }
 
@@ -123,6 +124,7 @@ export interface Goal {
   current_amount: number;
   target_date: string | null;
   pocket: Pocket | null;
+  debt_id: string | null;
   monthly_contribution: number;
   archived: boolean;
   created_at: string;

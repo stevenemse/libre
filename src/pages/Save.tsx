@@ -17,6 +17,7 @@ import {
   useDeleteDebt,
   useDeleteGoal,
   useDeleteTransaction,
+  useRepayDebt,
   useSaveDebt,
   useWorkspace,
 } from '../lib/queries';
@@ -38,10 +39,14 @@ import {
   currentMonthKey,
   debtBalanceTotal,
   debtMonthlyTotal,
+  debtPayoffOrder,
+  debtRepaymentPlan,
+  debtToIncomeRatio,
   goalProgress,
   monthLabel,
   monthlySummaries,
   netWorth,
+  netWorthHistory,
   num,
   receivableTotal,
   savingsRate,
@@ -135,6 +140,74 @@ function HistoryChart({
   );
 }
 
+function NetWorthChart({
+  data,
+  currency,
+}: {
+  data: Array<{ month: string; value: number }>;
+  currency: string;
+}) {
+  const width = 640;
+  const height = 170;
+  const padding = { top: 16, right: 10, bottom: 24, left: 10 };
+  const max = Math.max(1, ...data.map((item) => item.value));
+  const min = Math.min(0, ...data.map((item) => item.value));
+  const span = max - min || 1;
+  const plotW = width - padding.left - padding.right;
+  const plotH = height - padding.top - padding.bottom;
+  const x = (index: number) =>
+    padding.left + (data.length === 1 ? 0 : (index / (data.length - 1)) * plotW);
+  const y = (value: number) => padding.top + plotH - ((value - min) / span) * plotH;
+  const line = data.map((item, index) => `${x(index).toFixed(1)},${y(item.value).toFixed(1)}`);
+  const zeroY = y(0);
+
+  return (
+    <figure className="mt-4">
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        className="h-[170px] w-full"
+        role="img"
+        aria-label={`Patrimoine net des 12 derniers mois. ${data
+          .map((item) => `${shortMonthLabel(item.month)} : ${formatAmount(item.value, currency)}`)
+          .join(', ')}`}
+      >
+        <line
+          x1={padding.left}
+          x2={width - padding.right}
+          y1={zeroY}
+          y2={zeroY}
+          className="stroke-line"
+          strokeDasharray="4 4"
+        />
+        <path
+          d={`M ${line.join(' L ')}`}
+          fill="none"
+          stroke="#A8FF00"
+          strokeWidth={2.5}
+          strokeLinecap="round"
+        />
+        {data.map((item, index) => (
+          <text
+            key={item.month}
+            x={x(index)}
+            y={height - 8}
+            textAnchor="middle"
+            fontSize="10"
+            fill="rgba(139,151,167,0.9)"
+            fontFamily="Urbanist, system-ui, sans-serif"
+          >
+            {shortMonthLabel(item.month).replace('.', '')}
+          </text>
+        ))}
+      </svg>
+      <figcaption className="sr-only">
+        Patrimoine net mensuel sur 12 mois : assets et créances actuels moins le solde de dette
+        reconstitué à la fin de chaque mois.
+      </figcaption>
+    </figure>
+  );
+}
+
 export default function Save() {
   const { userId } = useAuth();
   const { data } = useWorkspace(userId);
@@ -145,11 +218,13 @@ export default function Save() {
   const deleteGoal = useDeleteGoal(userId);
   const saveDebt = useSaveDebt(userId);
   const deleteDebt = useDeleteDebt(userId);
+  const repayDebt = useRepayDebt(userId);
   const [goalOpen, setGoalOpen] = useState(false);
   const [goalName, setGoalName] = useState('');
   const [goalTarget, setGoalTarget] = useState('');
   const [goalDate, setGoalDate] = useState('');
   const [goalPocket, setGoalPocket] = useState<Goal['pocket']>(null);
+  const [goalDebt, setGoalDebt] = useState('');
   const [goalError, setGoalError] = useState<string | null>(null);
   const [funding, setFunding] = useState<Goal | null>(null);
   const [fundAmount, setFundAmount] = useState('');
@@ -168,6 +243,10 @@ export default function Save() {
   const [debtMonthly, setDebtMonthly] = useState('');
   const [debtRate, setDebtRate] = useState('');
   const [debtError, setDebtError] = useState<string | null>(null);
+  const [repaying, setRepaying] = useState<Debt | null>(null);
+  const [repayAmount, setRepayAmount] = useState('');
+  const [repayError, setRepayError] = useState<string | null>(null);
+  const [payoffStrategy, setPayoffStrategy] = useState<'avalanche' | 'snowball'>('avalanche');
 
   const derived = useMemo(() => {
     if (!data) return null;
@@ -212,6 +291,7 @@ export default function Save() {
       receivable: receivableTotal(data.debts),
       assetsValue,
       netAssets: netWorth(assetsValue, data.debts),
+      netWorthHistory: netWorthHistory(data.transactions, data.debts, assetsValue),
     };
   }, [data, month, filter]);
 
@@ -231,6 +311,10 @@ export default function Save() {
   );
   const overBudget = derived.selected.needs > derived.selected.income && derived.selected.income > 0;
   const months = [...derived.summaries].reverse();
+  const incomeForRatio =
+    derived.selected.income > 0 ? derived.selected.income : num(data.profile.avg_income);
+  const debtRatio = debtToIncomeRatio(derived.debtMonthly, incomeForRatio);
+  const orderedDebts = debtPayoffOrder(data.debts, payoffStrategy);
 
   const parseAmount = (value: string) =>
     Number.parseFloat(value.replace(/\s/g, '').replace(',', '.')) || 0;
@@ -253,6 +337,7 @@ export default function Save() {
         target_amount: target,
         target_date: goalDate || null,
         pocket: goalPocket,
+        debt_id: goalDebt || null,
         monthly_contribution: 0,
       });
       setGoalOpen(false);
@@ -260,6 +345,7 @@ export default function Save() {
       setGoalTarget('');
       setGoalDate('');
       setGoalPocket(null);
+      setGoalDebt('');
     } catch (err) {
       setGoalError(err instanceof Error ? err.message : 'Enregistrement impossible.');
     }
@@ -305,6 +391,24 @@ export default function Save() {
       setEditingDebt(null);
     } catch (err) {
       setDebtError(err instanceof Error ? err.message : 'Enregistrement impossible.');
+    }
+  };
+
+  const submitRepay = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setRepayError(null);
+    if (!repaying) return;
+    const amount = parseAmount(repayAmount);
+    if (amount <= 0) {
+      setRepayError('Saisis un montant supérieur à zéro.');
+      return;
+    }
+    try {
+      await repayDebt.mutateAsync({ id: repaying.id, amount });
+      setRepaying(null);
+      setRepayAmount('');
+    } catch (err) {
+      setRepayError(err instanceof Error ? err.message : 'Enregistrement impossible.');
     }
   };
 
@@ -453,7 +557,11 @@ export default function Save() {
                     <div className="min-w-0">
                       <p className="truncate text-[15px] font-semibold">{goal.name}</p>
                       <p className="mt-0.5 text-[12px] text-mist">
-                        {goal.pocket ? POCKET_LABEL[goal.pocket] : 'Objectif libre'}
+                        {goal.debt_id
+                          ? `Remboursement · ${data.debts.find((debt) => debt.id === goal.debt_id)?.title ?? 'dette'}`
+                          : goal.pocket
+                            ? POCKET_LABEL[goal.pocket]
+                            : 'Objectif libre'}
                         {goal.target_date ? ` · ${formatDate(goal.target_date)}` : ''}
                       </p>
                     </div>
@@ -548,6 +656,71 @@ export default function Save() {
               ))}
             </div>
 
+            {debtRatio > 0.3 ? (
+              <div className="mb-3">
+                <Alert
+                  tone={debtRatio > 0.4 ? 'danger' : 'warning'}
+                  title={`Tes dettes absorbent ${formatPercent(debtRatio)} de ton revenu`}
+                >
+                  Au-delà de 30 %, ta marge se réduit vite. Priorise le remboursement et évite
+                  d'ajouter une nouvelle mensualité avant d'avoir allégé celle-ci.
+                </Alert>
+              </div>
+            ) : null}
+
+            {orderedDebts.length >= 2 ? (
+              <div className="card mb-3 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="label">Ordre de remboursement conseillé</p>
+                  <div
+                    className="flex gap-1.5"
+                    role="group"
+                    aria-label="Stratégie de remboursement"
+                  >
+                    <button
+                      type="button"
+                      className="pill"
+                      aria-pressed={payoffStrategy === 'avalanche'}
+                      onClick={() => setPayoffStrategy('avalanche')}
+                    >
+                      Avalanche
+                    </button>
+                    <button
+                      type="button"
+                      className="pill"
+                      aria-pressed={payoffStrategy === 'snowball'}
+                      onClick={() => setPayoffStrategy('snowball')}
+                    >
+                      Boule de neige
+                    </button>
+                  </div>
+                </div>
+                <ol className="mt-3 space-y-2">
+                  {orderedDebts.map((debt, index) => (
+                    <li key={debt.id} className="flex items-center gap-3 text-[13px]">
+                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent text-[11px] font-bold text-ink">
+                        {index + 1}
+                      </span>
+                      <span className="min-w-0 flex-1 truncate font-medium">{debt.title}</span>
+                      <span className="num text-mist">
+                        {formatAmount(num(debt.balance), currency)}
+                      </span>
+                      {num(debt.interest_rate) > 0 ? (
+                        <span className="num text-mist">
+                          {formatPercent(num(debt.interest_rate) / 100, 1)}
+                        </span>
+                      ) : null}
+                    </li>
+                  ))}
+                </ol>
+                <p className="mt-2 text-[12px] leading-relaxed text-mist">
+                  {payoffStrategy === 'avalanche'
+                    ? "Avalanche : le taux le plus élevé d'abord. C'est l'ordre qui coûte le moins d'intérêts."
+                    : 'Boule de neige : le plus petit solde d’abord, pour gagner vite une victoire et garder la motivation.'}
+                </p>
+              </div>
+            ) : null}
+
             <ul className="grid gap-3 sm:grid-cols-2">
               {data.debts.map((debt) => {
                 const owedByMe = debt.direction === 'owed_by_me';
@@ -601,10 +774,72 @@ export default function Save() {
                         </p>
                       ) : null}
                     </div>
+
+                    {owedByMe
+                      ? (() => {
+                          const plan = debtRepaymentPlan(
+                            num(debt.balance),
+                            num(debt.monthly_payment),
+                            debt.interest_rate
+                          );
+                          const faster = debtRepaymentPlan(
+                            num(debt.balance),
+                            num(debt.monthly_payment) * 1.1,
+                            debt.interest_rate
+                          );
+                          return (
+                            <div className="mt-2 space-y-0.5 text-[12px] text-mist">
+                              {plan ? (
+                                <p>
+                                  {plan.months} mois restants
+                                  {plan.totalInterest > 0
+                                    ? ` · ${formatAmount(plan.totalInterest, currency)} d'intérêts`
+                                    : ' · sans intérêts'}
+                                </p>
+                              ) : (
+                                <p>Mensualité insuffisante pour couvrir les intérêts : augmente-la.</p>
+                              )}
+                              {plan && faster && plan.months > faster.months ? (
+                                <p className="text-accent-text">
+                                  Avec +10 % ({formatAmount(num(debt.monthly_payment) * 1.1, currency)}) :{' '}
+                                  {faster.months} mois
+                                  {plan.totalInterest > 0
+                                    ? `, ${formatAmount(plan.totalInterest - faster.totalInterest, currency)} d'intérêts économisés`
+                                    : ''}
+                                  .
+                                </p>
+                              ) : null}
+                            </div>
+                          );
+                        })()
+                      : null}
+
+                    {owedByMe && num(debt.balance) > 0 ? (
+                      <button
+                        type="button"
+                        className="btn btn-ghost mt-3 h-9 w-full text-[13px] text-accent-text"
+                        onClick={() => {
+                          setRepaying(debt);
+                          setRepayAmount(num(debt.monthly_payment) > 0 ? String(num(debt.monthly_payment)) : '');
+                          setRepayError(null);
+                        }}
+                      >
+                        <Wallet size={14} strokeWidth={2} />
+                        Rembourser
+                      </button>
+                    ) : null}
                   </li>
                 );
               })}
             </ul>
+
+            <div className="card mt-3 p-5 sm:p-6">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <SectionTitle>Patrimoine net</SectionTitle>
+                <p className="text-[12px] text-mist">Assets + créances − dettes</p>
+              </div>
+              <NetWorthChart data={derived.netWorthHistory} currency={currency} />
+            </div>
           </>
         )}
       </section>
@@ -770,6 +1005,30 @@ export default function Save() {
                 onChange={(event) => setGoalDate(event.target.value)}
               />
             </div>
+          </div>
+
+          <div>
+            <label htmlFor="goal-debt" className="field-label">
+              Dette à rembourser <span className="font-normal text-mist">(facultatif)</span>
+            </label>
+            <select
+              id="goal-debt"
+              className="field"
+              value={goalDebt}
+              onChange={(event) => setGoalDebt(event.target.value)}
+            >
+              <option value="">Aucune — épargne classique</option>
+              {data.debts
+                .filter((debt) => debt.direction === 'owed_by_me' && num(debt.balance) > 0)
+                .map((debt) => (
+                  <option key={debt.id} value={debt.id}>
+                    {debt.title}
+                  </option>
+                ))}
+            </select>
+            <p className="label mt-1">
+              Le versement réduit alors le solde de la dette au lieu de remplir une poche.
+            </p>
           </div>
 
           <div>
@@ -942,6 +1201,44 @@ export default function Save() {
 
           <button type="submit" className="btn btn-primary w-full" disabled={saveDebt.isPending}>
             {saveDebt.isPending ? 'Enregistrement…' : editingDebt ? 'Mettre à jour' : 'Enregistrer'}
+          </button>
+        </form>
+      </Sheet>
+
+      <Sheet
+        open={Boolean(repaying)}
+        onClose={() => setRepaying(null)}
+        title="Rembourser une dette"
+        subtitle={repaying?.title ?? undefined}
+      >
+        <form onSubmit={submitRepay} className="space-y-4">
+          <div>
+            <label htmlFor="repay-amount" className="field-label">
+              Montant du remboursement
+            </label>
+            <input
+              id="repay-amount"
+              className="field h-16 text-[24px] font-semibold"
+              inputMode="decimal"
+              value={repayAmount}
+              onChange={(event) => {
+                setRepayAmount(event.target.value);
+                setRepayError(null);
+              }}
+              placeholder="0"
+            />
+            <p className="label mt-1">
+              Reste{' '}
+              {formatAmount(
+                Math.max(0, num(repaying?.balance) - parseAmount(repayAmount)),
+                currency
+              )}{' '}
+              après ce versement.
+            </p>
+          </div>
+          <FieldError>{repayError}</FieldError>
+          <button type="submit" className="btn btn-primary w-full" disabled={repayDebt.isPending}>
+            {repayDebt.isPending ? 'Enregistrement…' : 'Enregistrer le remboursement'}
           </button>
         </form>
       </Sheet>

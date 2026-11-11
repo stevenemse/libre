@@ -368,6 +368,48 @@ export function useSaveDebt(userId: string | undefined) {
   });
 }
 
+export function useRepayDebt(userId: string | undefined) {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: async ({ id, amount }: { id: string; amount: number }) => {
+      if (!userId) throw new Error('Session expirée');
+      if (amount <= 0) throw new Error('Montant invalide');
+      const { data: debt, error: readError } = await supabase
+        .from('debts')
+        .select('title, balance, monthly_payment')
+        .eq('id', id)
+        .single();
+      if (readError) throw new Error(readError.message);
+      const next = Math.max(0, Number(debt?.balance ?? 0) - amount);
+      const { error } = await supabase
+        .from('debts')
+        .update({
+          balance: next,
+          // Une dette soldée ne garde pas de mensualité fantôme.
+          monthly_payment: next === 0 ? 0 : Number(debt?.monthly_payment ?? 0),
+        })
+        .eq('id', id);
+      if (error) throw new Error(error.message);
+
+      const { error: txError } = await supabase.from('transactions').insert({
+        user_id: userId,
+        type: 'expense',
+        amount,
+        category_id: null,
+        goal_id: null,
+        debt_id: id,
+        occurred_on: new Date().toISOString().slice(0, 10),
+        note: `Remboursement : ${debt?.title ?? 'dette'}`,
+        recurrence: 'none',
+        parent_tx_id: null,
+        income_kind: null,
+      });
+      if (txError) throw new Error(txError.message);
+    },
+    onSuccess: () => invalidate(userId),
+  });
+}
+
 export function useDeleteDebt(userId: string | undefined) {
   const invalidate = useInvalidate();
   return useMutation({
@@ -412,6 +454,7 @@ export function useAddGoal(userId: string | undefined) {
       target_amount: number;
       target_date: string | null;
       pocket: Goal['pocket'];
+      debt_id: string | null;
       monthly_contribution: number;
     }) => {
       if (!userId) throw new Error('Session expirée');
@@ -431,7 +474,7 @@ export function useContributeGoal(userId: string | undefined) {
       if (!userId) throw new Error('Session expirée');
       const { data: goal, error: readError } = await supabase
         .from('goals')
-        .select('current_amount, name')
+        .select('current_amount, name, debt_id')
         .eq('id', id)
         .single();
       if (readError) throw new Error(readError.message);
@@ -439,17 +482,38 @@ export function useContributeGoal(userId: string | undefined) {
       const { error } = await supabase.from('goals').update({ current_amount: next }).eq('id', id);
       if (error) throw new Error(error.message);
 
+      const debtId = (goal?.debt_id as string | null) ?? null;
+
+      if (debtId) {
+        // Objectif rattaché à une dette : le versement rembourse la dette.
+        const { data: debt, error: debtError } = await supabase
+          .from('debts')
+          .select('balance, monthly_payment')
+          .eq('id', debtId)
+          .single();
+        if (debtError) throw new Error(debtError.message);
+        const remaining = Math.max(0, Number(debt?.balance ?? 0) - amount);
+        const { error: updateError } = await supabase
+          .from('debts')
+          .update({
+            balance: remaining,
+            monthly_payment: remaining === 0 ? 0 : Number(debt?.monthly_payment ?? 0),
+          })
+          .eq('id', debtId);
+        if (updateError) throw new Error(updateError.message);
+      }
+
       // Le versement devient une vraie sortie d'épargne : on crée une
-      // transaction liée à l'objectif pour que l'argent ne soit plus
-      // disponible dans l'épargne du mois.
+      // transaction liée à l'objectif (ou à la dette remboursée).
       const { error: txError } = await supabase.from('transactions').insert({
         user_id: userId,
         type: 'expense',
         amount,
         category_id: null,
-        goal_id: id,
+        goal_id: debtId ? null : id,
+        debt_id: debtId,
         occurred_on: new Date().toISOString().slice(0, 10),
-        note: `Versement : ${goal?.name ?? 'objectif'}`,
+        note: debtId ? `Remboursement : ${goal?.name ?? 'dette'}` : `Versement : ${goal?.name ?? 'objectif'}`,
         recurrence: 'none',
         parent_tx_id: null,
         income_kind: null,

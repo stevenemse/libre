@@ -3,8 +3,12 @@ import {
   coachMessage,
   debtBalanceTotal,
   debtMonthlyTotal,
+  debtPayoffOrder,
+  debtRepaymentPlan,
+  debtToIncomeRatio,
   emergencyTarget,
   netWorth,
+  netWorthHistory,
   receivableTotal,
   freedomCapital,
   goalProgress,
@@ -36,6 +40,7 @@ const tx = (patch: Partial<Transaction> & Pick<Transaction, 'occurred_on' | 'amo
   parent_tx_id: null,
   income_kind: null,
   goal_id: null,
+  debt_id: null,
   created_at: '',
   ...patch,
 });
@@ -181,15 +186,15 @@ describe('synthèse mensuelle', () => {
     const transactions: Transaction[] = [
       {
         id: '1', user_id: 'u', category_id: 'c-need', type: 'income', amount: 300_000,
-        occurred_on: '2026-10-02', note: null, recurrence: 'none', parent_tx_id: null, income_kind: null, goal_id: null, created_at: "",
+        occurred_on: '2026-10-02', note: null, recurrence: 'none', parent_tx_id: null, income_kind: null, goal_id: null, debt_id: null, created_at: "",
       },
       {
         id: '2', user_id: 'u', category_id: 'c-need', type: 'expense', amount: 100_000,
-        occurred_on: '2026-10-05', note: null, recurrence: 'none', parent_tx_id: null, income_kind: null, goal_id: null, created_at: "",
+        occurred_on: '2026-10-05', note: null, recurrence: 'none', parent_tx_id: null, income_kind: null, goal_id: null, debt_id: null, created_at: "",
       },
       {
         id: '3', user_id: 'u', category_id: 'c-want', type: 'expense', amount: 30_000,
-        occurred_on: '2026-10-09', note: null, recurrence: 'none', parent_tx_id: null, income_kind: null, goal_id: null, created_at: "",
+        occurred_on: '2026-10-09', note: null, recurrence: 'none', parent_tx_id: null, income_kind: null, goal_id: null, debt_id: null, created_at: "",
       },
     ];
     const summaries = monthlySummaries(
@@ -454,5 +459,85 @@ describe('dettes et patrimoine net', () => {
     );
     expect(summaries[0].debtPayments).toBe(0);
     expect(summaries[0].savings).toBe(250_000);
+  });
+
+  it('le remboursement réel remplace le forfait quand il est plus élevé', () => {
+    const now = new Date(2026, 4, 15);
+    const rows = [
+      tx({ occurred_on: '2026-05-10', amount: 60_000, debt_id: 'd1' }),
+      tx({ occurred_on: '2026-05-02', amount: 250_000, type: 'income' }),
+    ];
+    const summaries = monthlySummaries(
+      rows,
+      new Map(),
+      { income: 250_000, needs: 100_000, debtPayments: 50_000 },
+      1,
+      now
+    );
+    expect(summaries[0].debtPayments).toBe(60_000);
+    expect(summaries[0].savings).toBe(90_000);
+  });
+});
+
+describe('coût du crédit et ordre de remboursement', () => {
+  it('calcule la durée et les intérêts d’un crédit amortissable', () => {
+    const plan = debtRepaymentPlan(400_000, 50_000, 12);
+    expect(plan?.months).toBe(9);
+    expect(plan?.totalInterest).toBe(50_000);
+  });
+
+  it('sans intérêts, la durée est le quotient du solde', () => {
+    expect(debtRepaymentPlan(100_000, 25_000, 0)).toEqual({ months: 4, totalInterest: 0 });
+  });
+
+  it('signale une mensualité qui ne couvre pas les intérêts', () => {
+    expect(debtRepaymentPlan(400_000, 3_000, 12)).toBeNull();
+  });
+
+  it('une mensualité plus élevée réduit la durée et les intérêts', () => {
+    const base = debtRepaymentPlan(400_000, 50_000, 12)!;
+    const faster = debtRepaymentPlan(400_000, 55_000, 12)!;
+    expect(faster.months).toBeLessThan(base.months);
+    expect(faster.totalInterest).toBeLessThan(base.totalInterest);
+  });
+
+  it('ordonne en avalanche par taux décroissant', () => {
+    const debts = [
+      debt({ title: 'Petit', balance: 100_000, interest_rate: 3 }),
+      debt({ title: 'Cher', balance: 500_000, interest_rate: 18 }),
+      debt({ title: 'Moyen', balance: 300_000, interest_rate: 9 }),
+    ];
+    expect(debtPayoffOrder(debts, 'avalanche').map((item) => item.title)).toEqual([
+      'Cher',
+      'Moyen',
+      'Petit',
+    ]);
+  });
+
+  it('ordonne en boule de neige par plus petit solde', () => {
+    const debts = [
+      debt({ title: 'Petit', balance: 100_000, interest_rate: 3 }),
+      debt({ title: 'Cher', balance: 500_000, interest_rate: 18 }),
+      debt({ title: 'Moyen', balance: 300_000, interest_rate: 9 }),
+    ];
+    expect(debtPayoffOrder(debts, 'snowball').map((item) => item.title)).toEqual([
+      'Petit',
+      'Moyen',
+      'Cher',
+    ]);
+  });
+
+  it('mesure le poids des mensualités dans le revenu', () => {
+    expect(debtToIncomeRatio(75_000, 250_000)).toBeCloseTo(0.3, 10);
+    expect(debtToIncomeRatio(75_000, 0)).toBe(0);
+  });
+
+  it('reconstitue le patrimoine net mois par mois', () => {
+    const now = new Date(2026, 4, 15);
+    const debts = [debt({ balance: 50_000 })];
+    const rows = [tx({ occurred_on: '2026-05-10', amount: 10_000, debt_id: 'd1' })];
+    const history = netWorthHistory(rows, debts, 100_000, 2, now);
+    expect(history[1].value).toBe(50_000);
+    expect(history[0].value).toBe(40_000);
   });
 });

@@ -78,11 +78,95 @@ export function receivableTotal(debts: Debt[]): number {
     .reduce((sum, debt) => sum + Math.max(0, num(debt.balance)), 0);
 }
 
+/** Part du revenu absorbée par les mensualités de dette (0 sans revenu). */
+export function debtToIncomeRatio(monthlyDebt: number, income: number): number {
+  if (income <= 0) return 0;
+  return Math.max(0, num(monthlyDebt)) / income;
+}
+
+export interface RepaymentPlan {
+  months: number;
+  totalInterest: number;
+}
+
+/**
+ * Durée et intérêts restants d'un crédit à mensualité constante.
+ * Formule d'amortissement : n = −ln(1 − r·B/M) / ln(1 + r).
+ * Null si la mensualité ne couvre pas les intérêts du mois.
+ */
+export function debtRepaymentPlan(
+  balance: number,
+  monthlyPayment: number,
+  annualRate: number | null
+): RepaymentPlan | null {
+  const b = Math.max(0, num(balance));
+  const m = Math.max(0, num(monthlyPayment));
+  if (b === 0) return { months: 0, totalInterest: 0 };
+  if (m <= 0) return null;
+  const r = Math.max(0, num(annualRate)) / 1200;
+  if (r === 0) {
+    const months = Math.ceil(b / m);
+    return { months, totalInterest: 0 };
+  }
+  if (m <= b * r) return null;
+  const months = Math.ceil(-Math.log(1 - (r * b) / m) / Math.log(1 + r));
+  return { months, totalInterest: round2(Math.max(0, months * m - b)) };
+}
+
+/** Ordre de remboursement : avalanche (taux) ou boule de neige (petit solde). */
+export function debtPayoffOrder(debts: Debt[], strategy: 'avalanche' | 'snowball'): Debt[] {
+  const active = debts.filter(
+    (debt) => debt.direction === 'owed_by_me' && num(debt.balance) > 0
+  );
+  return [...active].sort((a, b) => {
+    if (strategy === 'avalanche') {
+      return num(b.interest_rate) - num(a.interest_rate) || num(a.balance) - num(b.balance);
+    }
+    return num(a.balance) - num(b.balance) || num(b.interest_rate) - num(a.interest_rate);
+  });
+}
+
 /** Patrimoine net = assets + créances − dettes. Peut être négatif. */
 export function netWorth(assetsValue: number, debts: Debt[]): number {
   return round2(
     Math.max(0, num(assetsValue)) + receivableTotal(debts) - debtBalanceTotal(debts)
   );
+}
+
+/**
+ * Patrimoine net reconstitué mois par mois : solde actuel des dettes auquel on
+ * rajoute les remboursements postérieurs au mois considéré. Les assets et les
+ * créances sont pris à leur valeur actuelle (pas d'historique de valorisation).
+ */
+export function netWorthHistory(
+  transactions: Transaction[],
+  debts: Debt[],
+  assetsValue: number,
+  monthsBack = 12,
+  now = new Date()
+): Array<{ month: string; value: number }> {
+  const buckets: string[] = [];
+  for (let i = monthsBack - 1; i >= 0; i -= 1) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    buckets.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+  }
+  const repayments = new Map<string, number>(buckets.map((key) => [key, 0]));
+  for (const tx of transactions) {
+    if (tx.type !== 'expense' || !tx.debt_id) continue;
+    const key = tx.occurred_on.slice(0, 7);
+    if (!repayments.has(key)) continue;
+    repayments.set(key, (repayments.get(key) ?? 0) + num(tx.amount));
+  }
+
+  const base = Math.max(0, num(assetsValue)) + receivableTotal(debts);
+  const currentDebt = debtBalanceTotal(debts);
+  let futureRepayments = 0;
+  const values = new Array<number>(buckets.length);
+  for (let i = buckets.length - 1; i >= 0; i -= 1) {
+    values[i] = round2(base - (currentDebt + futureRepayments));
+    futureRepayments += repayments.get(buckets[i]) ?? 0;
+  }
+  return buckets.map((month, index) => ({ month, value: values[index] }));
 }
 
 /** Cible du fonds d'urgence = besoins du mois × mois d'urgence. */
@@ -202,14 +286,14 @@ export function monthlySummaries(
   // On enregistre d'abord les montants réellement saisis, mois par mois.
   const recorded = new Map<
     string,
-    { income: number; needs: number; wants: number; savingsOut: number }
+    { income: number; needs: number; wants: number; savingsOut: number; debt: number }
   >();
   const buckets: string[] = [];
   for (let i = monthsBack - 1; i >= 0; i -= 1) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
     buckets.push(key);
-    recorded.set(key, { income: 0, needs: 0, wants: 0, savingsOut: 0 });
+    recorded.set(key, { income: 0, needs: 0, wants: 0, savingsOut: 0, debt: 0 });
   }
   for (const tx of transactions) {
     const key = tx.occurred_on.slice(0, 7);
@@ -221,6 +305,9 @@ export function monthlySummaries(
     } else if (tx.goal_id) {
       // Versement sur objectif : sort de l'épargne, sans gonfler les besoins.
       bucket.savingsOut += amount;
+    } else if (tx.debt_id) {
+      // Remboursement de dette : sort de l'épargne, compté à part.
+      bucket.debt += amount;
     } else {
       const kind = tx.category_id ? categoryKinds.get(tx.category_id) : null;
       if (kind === 'need') bucket.needs += amount;
@@ -239,9 +326,10 @@ export function monthlySummaries(
     const needsEstimated =
       isCurrent && fallbackNeeds > r.needs ? fallbackNeeds - r.needs : 0;
     const needs = isCurrent ? Math.max(r.needs, fallbackNeeds) : r.needs;
-    // Remboursements de dettes : engagement du mois courant uniquement, comme
-    // le plancher déclaré. Les mois passés gardent ce qui a été saisi.
-    const debtPayments = isCurrent ? fallbackDebt : 0;
+    // Remboursements de dettes : le remboursement réel remplace le forfait
+    // dès qu'il est supérieur, sinon la mensualité prévue reste l'engagement
+    // du mois. Les mois passés ne comptent que le réel enregistré.
+    const debtPayments = isCurrent ? Math.max(r.debt, fallbackDebt) : r.debt;
     const savingsAmount = Math.max(0, income - needs - r.savingsOut - debtPayments);
     return {
       month: key,

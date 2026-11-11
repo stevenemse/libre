@@ -19,13 +19,22 @@ import {
 import { useAuth } from '../lib/auth';
 import { useWorkspace } from '../lib/queries';
 import { useTxSheet } from '../components/AppShell';
-import { CoachNote, EmptyState, IconCircle, ProgressBar, SectionTitle, cn } from '../components/ui';
+import {
+  Alert,
+  CoachNote,
+  EmptyState,
+  IconCircle,
+  ProgressBar,
+  SectionTitle,
+  cn,
+} from '../components/ui';
 import { currencyLabel, formatAmount, formatDay, formatPercent, initials } from '../lib/format';
 import {
   coachMessage,
   currentMonthKey,
   debtBalanceTotal,
   debtMonthlyTotal,
+  debtToIncomeRatio,
   emergencyTarget,
   freedomCapital,
   incomeMedian,
@@ -105,6 +114,10 @@ export default function Home() {
         : emergencyTarget(needsForPlanning, data.profile.emergency_months);
     const target = freedomCapital(needsForPlanning);
 
+    const debtRatio = debtToIncomeRatio(
+      debtMonthly,
+      income > 0 ? income : num(data.profile.avg_income)
+    );
     const assetsValue = data.assets.reduce((sum, asset) => sum + num(asset.value), 0);
     const declaredPassive = data.assets.reduce((sum, asset) => sum + num(asset.monthly_income), 0);
     const passive = declaredPassive > 0 ? declaredPassive : assetsValue * 0.04 / 12;
@@ -142,6 +155,7 @@ export default function Home() {
       pockets,
       needsForPlanning,
       debtMonthly,
+      debtRatio,
       debtBalance: debtBalanceTotal(data.debts),
       receivable: receivableTotal(data.debts),
       netAssets: netWorth(assetsValue, data.debts),
@@ -399,6 +413,18 @@ export default function Home() {
             <ArrowRight size={15} strokeWidth={2} />
           </Link>
         </div>
+
+        {derived.debtRatio > 0.3 ? (
+          <div className="mt-4">
+            <Alert
+              tone={derived.debtRatio > 0.4 ? 'danger' : 'warning'}
+              title={`Mensualités à ${formatPercent(derived.debtRatio)} de ton revenu`}
+            >
+              Au-delà de 30 %, la marge se réduit vite. L'ordre de remboursement conseillé est
+              dans Épargner, section Dettes.
+            </Alert>
+          </div>
+        ) : null}
 
         <dl className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
           {[
