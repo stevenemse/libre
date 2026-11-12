@@ -257,12 +257,12 @@ export default function Home() {
         >
           <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="text-[13px] font-semibold text-ink/60">
+              <p className="text-[13px] font-semibold text-ink/75">
                 Épargne de {monthLabel(derived.monthKey)}
               </p>
               <p className="num mt-2 text-[38px] font-semibold leading-none sm:text-[46px]">
                 {formatAmount(derived.saved, currency)}
-                <span className="ml-2 text-[15px] font-medium text-ink/60">
+                <span className="ml-2 text-[15px] font-medium text-ink/75">
                   {currencyLabel(currency)}
                 </span>
               </p>
@@ -274,14 +274,14 @@ export default function Home() {
               {(() => {
                 const last = derived?.summaries?.[derived.summaries.length - 1];
                 return (last?.incomeEstimated ?? 0) > 0 || (last?.needsEstimated ?? 0) > 0 ? (
-                  <p className="mt-1 text-[12px] text-ink/55">
+                  <p className="mt-1 text-[12px] text-ink/75">
                     Revenu {formatAmount(last?.incomeEstimated ?? 0, currency)} estimé · Besoins{' '}
                     {formatAmount(last?.needsEstimated ?? 0, currency)} estimés ce mois.
                   </p>
                 ) : null;
               })()}
               {derived.hasVariableIncome && derived.variableBase.median > 0 ? (
-                <p className="mt-1 text-[12px] text-ink/55">
+                <p className="mt-1 text-[12px] text-ink/75">
                   Revenus variables : base de calcul{' '}
                   {formatAmount(derived.variableBase.median, currency)}, médiane de tes{' '}
                   {derived.variableBase.months} dernier
@@ -299,7 +299,7 @@ export default function Home() {
           </div>
 
           <div className="mt-7">
-            <div className="mb-2 flex items-center justify-between text-[12px] font-medium text-ink/60">
+            <div className="mb-2 flex items-center justify-between text-[12px] font-medium text-ink/75">
               <span>Objectif {Math.round(goalRate * 100)} %</span>
               <span>
                 {derived.rate >= goalRate
@@ -324,17 +324,17 @@ export default function Home() {
 
           <div className="mt-6 grid grid-cols-2 gap-3">
             <div className="rounded-2xl bg-ink/8 p-3">
-              <p className="text-[12px] font-medium text-ink/60">Revenus</p>
+              <p className="text-[12px] font-medium text-ink/75">Revenus</p>
               <p className="num mt-0.5 text-[16px] font-semibold">
                 {formatAmount(derived.income, currency)}{' '}
-                <span className="text-[12px] font-medium text-ink/60">{currencyLabel(currency)}</span>
+                <span className="text-[12px] font-medium text-ink/75">{currencyLabel(currency)}</span>
               </p>
             </div>
             <div className="rounded-2xl bg-ink/8 p-3">
-              <p className="text-[12px] font-medium text-ink/60">Besoins</p>
+              <p className="text-[12px] font-medium text-ink/75">Besoins</p>
               <p className="num mt-0.5 text-[16px] font-semibold">
                 {formatAmount(derived.needs, currency)}{' '}
-                <span className="text-[12px] font-medium text-ink/60">{currencyLabel(currency)}</span>
+                <span className="text-[12px] font-medium text-ink/75">{currencyLabel(currency)}</span>
               </p>
             </div>
           </div>

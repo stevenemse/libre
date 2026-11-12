@@ -164,7 +164,12 @@ export default function Admin() {
             </span>
           </SectionTitle>
 
-          <div className="overflow-x-auto">
+          <div
+            className="overflow-x-auto"
+            tabIndex={0}
+            role="region"
+            aria-label="Tableau des comptes"
+          >
             <table className="w-full min-w-[560px] border-collapse text-left">
               <thead>
                 <tr className="border-b border-line text-[12px] uppercase tracking-wide text-mist">

@@ -229,7 +229,7 @@ export function TransactionSheet({
                 >
                   {category.name}
                   {category.kind ? (
-                    <span className={active ? 'text-ink/60' : 'text-mist/70'}>
+                    <span className={active ? 'text-ink/75' : 'text-mist'}>
                       · {category.kind === 'need' ? 'besoin' : 'envie'}
                     </span>
                   ) : null}
@@ -262,7 +262,7 @@ export function TransactionSheet({
                   onClick={() => setIncomeKind(option.key)}
                 >
                   {option.label}
-                  <span className={incomeKind === option.key ? 'text-ink/60' : 'text-mist/70'}>
+                  <span className={incomeKind === option.key ? 'text-ink/75' : 'text-mist'}>
                     · {option.hint}
                   </span>
                 </button>

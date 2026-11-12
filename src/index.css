@@ -416,7 +416,8 @@ html[data-theme='light'] {
   .pill-paper[aria-selected='true'],
   .pill-paper[aria-pressed='true'] {
     background: var(--color-graphite);
-    color: var(--color-snow);
+    /* Pastille toujours sombre : le texte doit rester clair, même en mode jour. */
+    color: var(--color-paper);
   }
 
   .divider {

@@ -116,7 +116,7 @@ export default function Tips() {
                     <Flame
                       size={18}
                       strokeWidth={1.75}
-                      className={active ? 'shrink-0 text-accent-text' : 'shrink-0 text-mist/60'}
+                      className={active ? 'shrink-0 text-accent-text' : 'shrink-0 text-mist'}
                       aria-hidden="true"
                     />
                   </div>
@@ -259,7 +259,7 @@ export default function Tips() {
                           {tip.title}
                         </span>
                         {progress?.read_at ? (
-                          <Check size={14} strokeWidth={2.5} className="shrink-0 text-graphite/40" aria-label="Lu" />
+                          <Check size={14} strokeWidth={2.5} className="shrink-0 text-graphite/60" aria-label="Lu" />
                         ) : null}
                         {progress?.favorite ? (
                           <Bookmark
@@ -273,11 +273,11 @@ export default function Tips() {
                       <span className="mt-1 line-clamp-2 block text-[13px] leading-relaxed text-graphite/65">
                         {tip.body}
                       </span>
-                      <span className="mt-1 block text-[12px] font-medium text-graphite/45 sm:hidden">
+                      <span className="mt-1 block text-[12px] font-medium text-graphite/65 sm:hidden">
                         {tip.category} · {tip.level}
                       </span>
                     </span>
-                    <span className="mt-0.5 hidden shrink-0 text-[12px] text-graphite/45 sm:block">
+                    <span className="mt-0.5 hidden shrink-0 text-[12px] text-graphite/65 sm:block">
                       {tip.level}
                     </span>
                   </button>
