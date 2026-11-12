@@ -137,7 +137,7 @@ export default function Tips() {
                       <div className="mt-3 flex gap-2">
                         <button
                           type="button"
-                          className="btn btn-secondary h-9 flex-1 text-[12px]"
+                          className="btn btn-secondary h-11 flex-1 text-[12px]"
                           onClick={() =>
                             completeChallenge.mutate({ id: active.id, done: !active.completed })
                           }
@@ -146,7 +146,7 @@ export default function Tips() {
                         </button>
                         <button
                           type="button"
-                          className="btn btn-ghost h-9 text-[12px] text-mist"
+                          className="btn btn-ghost h-11 text-[12px] text-mist"
                           onClick={() => deleteChallenge.mutate(active.id)}
                           aria-label={`Abandonner le défi ${challenge.title}`}
                         >
@@ -157,7 +157,7 @@ export default function Tips() {
                   ) : (
                     <button
                       type="button"
-                      className="btn btn-secondary mt-4 h-10 text-[13px]"
+                      className="btn btn-secondary mt-4 h-11 text-[13px]"
                       disabled={startChallenge.isPending}
                       onClick={() => startChallenge.mutate(challenge.id)}
                     >
@@ -250,7 +250,7 @@ export default function Tips() {
                     onClick={() => openTipDetail(tip)}
                     className="flex w-full items-start gap-3 px-4 py-4 text-left transition-colors hover:bg-graphite/[0.03] sm:px-5"
                   >
-                    <span className="mt-0.5 hidden shrink-0 rounded-full bg-accent px-2.5 py-1 text-[11px] font-semibold text-ink sm:inline-block">
+                    <span className="mt-0.5 hidden shrink-0 rounded-full bg-accent px-2.5 py-1 text-[12px] font-semibold text-ink sm:inline-block">
                       {tip.category}
                     </span>
                     <span className="min-w-0 flex-1">
@@ -273,11 +273,11 @@ export default function Tips() {
                       <span className="mt-1 line-clamp-2 block text-[13px] leading-relaxed text-graphite/65">
                         {tip.body}
                       </span>
-                      <span className="mt-1 block text-[11px] font-medium text-graphite/45 sm:hidden">
+                      <span className="mt-1 block text-[12px] font-medium text-graphite/45 sm:hidden">
                         {tip.category} · {tip.level}
                       </span>
                     </span>
-                    <span className="mt-0.5 hidden shrink-0 text-[11px] text-graphite/45 sm:block">
+                    <span className="mt-0.5 hidden shrink-0 text-[12px] text-graphite/45 sm:block">
                       {tip.level}
                     </span>
                   </button>
@@ -296,7 +296,7 @@ export default function Tips() {
       >
         {openTip ? (
           <div>
-            <span className="inline-block rounded-full bg-accent px-3 py-1 text-[11px] font-semibold text-ink">
+            <span className="inline-block rounded-full bg-accent px-3 py-1 text-[12px] font-semibold text-ink">
               {openTip.category}
             </span>
             <p className="mt-4 max-w-[70ch] text-[15px] leading-relaxed text-snow/90">{openTip.body}</p>
@@ -322,7 +322,7 @@ export default function Tips() {
               </button>
             </div>
 
-            <p className="mt-4 text-[11px] leading-relaxed text-mist">
+            <p className="mt-4 text-[12px] leading-relaxed text-mist">
               Conseil pédagogique. Libre ne donne pas de conseil financier personnalisé.
             </p>
           </div>

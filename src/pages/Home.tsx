@@ -243,7 +243,7 @@ export default function Home() {
             {action.body}
           </p>
         </div>
-        <Link to={action.cta.to} className="btn btn-secondary h-10 shrink-0 text-[13px]">
+        <Link to={action.cta.to} className="btn btn-secondary h-11 shrink-0 text-[13px]">
           {action.cta.label}
           <ArrowRight size={15} strokeWidth={2} />
         </Link>
@@ -291,7 +291,7 @@ export default function Home() {
             </div>
             <Link
               to="/epargner"
-              className="flex h-11 w-11 items-center justify-center rounded-full bg-ink/10 text-ink transition-colors hover:bg-ink/20"
+              className="flex h-12 w-12 items-center justify-center rounded-full bg-ink/10 text-ink transition-colors hover:bg-ink/20"
               aria-label="Voir le détail de mon épargne"
             >
               <ArrowUpRight size={20} strokeWidth={1.75} />
@@ -324,17 +324,17 @@ export default function Home() {
 
           <div className="mt-6 grid grid-cols-2 gap-3">
             <div className="rounded-2xl bg-ink/8 p-3">
-              <p className="text-[11px] font-medium text-ink/60">Revenus</p>
+              <p className="text-[12px] font-medium text-ink/60">Revenus</p>
               <p className="num mt-0.5 text-[16px] font-semibold">
                 {formatAmount(derived.income, currency)}{' '}
-                <span className="text-[11px] font-medium text-ink/60">{currencyLabel(currency)}</span>
+                <span className="text-[12px] font-medium text-ink/60">{currencyLabel(currency)}</span>
               </p>
             </div>
             <div className="rounded-2xl bg-ink/8 p-3">
-              <p className="text-[11px] font-medium text-ink/60">Besoins</p>
+              <p className="text-[12px] font-medium text-ink/60">Besoins</p>
               <p className="num mt-0.5 text-[16px] font-semibold">
                 {formatAmount(derived.needs, currency)}{' '}
-                <span className="text-[11px] font-medium text-ink/60">{currencyLabel(currency)}</span>
+                <span className="text-[12px] font-medium text-ink/60">{currencyLabel(currency)}</span>
               </p>
             </div>
           </div>
@@ -368,7 +368,7 @@ export default function Home() {
 
           <Link
             to="/investir"
-            className="mt-4 inline-flex items-center gap-1 text-[13px] font-semibold text-accent-text"
+            className="mt-2 inline-flex min-h-11 items-center gap-1 text-[13px] font-semibold text-accent-text"
           >
             {emergencyProgress >= 1 ? 'Fonds complet, bravo' : 'Compléter mon fonds'}
             <ChevronRight size={15} strokeWidth={2} />
@@ -408,7 +408,7 @@ export default function Home() {
                 : 'Aucune dette enregistrée'}
             </h2>
           </div>
-          <Link to="/epargner" className="btn btn-secondary h-10 text-[13px]">
+          <Link to="/epargner" className="btn btn-secondary h-11 text-[13px]">
             Gérer
             <ArrowRight size={15} strokeWidth={2} />
           </Link>
@@ -434,7 +434,7 @@ export default function Home() {
             { label: 'Patrimoine net', value: derived.netAssets },
           ].map((item) => (
             <div key={item.label} className="rounded-2xl bg-slate2/70 p-3">
-              <dt className="text-[11px] text-mist">{item.label}</dt>
+              <dt className="text-[12px] text-mist">{item.label}</dt>
               <dd className="num mt-1 text-[15px] font-semibold">
                 {formatAmount(item.value, currency)}
               </dd>
@@ -470,19 +470,19 @@ export default function Home() {
 
         <dl className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
           <div className="rounded-2xl bg-slate2/70 p-3">
-            <dt className="text-[11px] text-mist">Gagné</dt>
+            <dt className="text-[12px] text-mist">Gagné</dt>
             <dd className="num mt-1 text-[15px] font-semibold">
               {formatAmount(derived.review.income, currency)}
             </dd>
           </div>
           <div className="rounded-2xl bg-slate2/70 p-3">
-            <dt className="text-[11px] text-mist">Dépensé</dt>
+            <dt className="text-[12px] text-mist">Dépensé</dt>
             <dd className="num mt-1 text-[15px] font-semibold">
               {formatAmount(derived.review.expenses, currency)}
             </dd>
           </div>
           <div className="rounded-2xl bg-slate2/70 p-3">
-            <dt className="text-[11px] text-mist">Gardé</dt>
+            <dt className="text-[12px] text-mist">Gardé</dt>
             <dd className="num mt-1 text-[15px] font-semibold">
               {formatAmount(derived.review.saved, currency)}
             </dd>
@@ -529,23 +529,23 @@ export default function Home() {
               <dt className="label">Assets actuels</dt>
               <dd className="num mt-1 text-[18px] font-semibold">
                 {formatAmount(derived.assetsValue, currency)}
-                <span className="ml-1 text-[11px] font-medium text-mist">{currencyLabel(currency)}</span>
+                <span className="ml-1 text-[12px] font-medium text-mist">{currencyLabel(currency)}</span>
               </dd>
             </div>
             <div>
               <dt className="label">Capital cible (4 %)</dt>
               <dd className="num mt-1 text-[18px] font-semibold">
                 {formatAmount(derived.target, currency)}
-                <span className="ml-1 text-[11px] font-medium text-mist">{currencyLabel(currency)}</span>
+                <span className="ml-1 text-[12px] font-medium text-mist">{currencyLabel(currency)}</span>
               </dd>
             </div>
           </dl>
 
           <div className="mt-5 flex flex-wrap gap-2">
-            <Link to="/liberte" className="btn btn-secondary h-10 text-[13px]">
+            <Link to="/liberte" className="btn btn-secondary h-11 text-[13px]">
               Ouvrir le simulateur
             </Link>
-            <Link to="/investir" className="btn btn-ghost h-10 text-[13px]">
+            <Link to="/investir" className="btn btn-ghost h-11 text-[13px]">
               Ajouter un asset
             </Link>
           </div>
@@ -560,7 +560,7 @@ export default function Home() {
             </div>
             <Link
               to="/investir"
-              className="flex h-10 w-10 items-center justify-center rounded-full bg-slate2 text-mist transition-colors hover:text-snow"
+              className="flex h-11 w-11 items-center justify-center rounded-full bg-slate2 text-mist transition-colors hover:text-snow"
               aria-label="Ajuster la répartition"
             >
               <ArrowUpRight size={18} strokeWidth={1.75} />
@@ -620,7 +620,7 @@ export default function Home() {
             </span>
             <Link
               to="/conseils"
-              className="inline-flex items-center gap-1 text-[13px] font-semibold text-graphite"
+              className="inline-flex min-h-11 items-center gap-1 text-[13px] font-semibold text-graphite"
             >
               Tous les conseils <ChevronRight size={14} strokeWidth={2} />
             </Link>
@@ -636,7 +636,10 @@ export default function Home() {
         <section>
           <SectionTitle
             action={
-              <Link to="/epargner" className="text-[13px] font-semibold text-mist hover:text-snow">
+              <Link
+                to="/epargner"
+                className="inline-flex min-h-11 items-center text-[13px] font-semibold text-mist hover:text-snow"
+              >
                 Tout voir
               </Link>
             }
@@ -696,7 +699,7 @@ export default function Home() {
             </CoachNote>
           </div>
           <div className="mt-5 flex items-center gap-2">
-            <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-accent text-[12px] font-bold text-ink">
+            <span className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-accent text-[12px] font-bold text-ink">
               {initials(firstName)}
             </span>
             <p className="text-[12px] text-mist">

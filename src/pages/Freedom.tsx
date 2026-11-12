@@ -290,7 +290,7 @@ export default function Freedom() {
                 className="mt-2"
                 aria-valuetext={`${annualReturn} pour cent par an`}
               />
-              <div className="flex justify-between text-[11px] text-mist">
+              <div className="flex justify-between text-[12px] text-mist">
                 <span>2 %</span>
                 <span>15 %</span>
               </div>
@@ -337,7 +337,7 @@ export default function Freedom() {
             <p className="text-[13px] font-semibold">Enregistrer ce scénario</p>
             <div className="mt-2 flex gap-2">
               <input
-                className="field h-10 flex-1"
+                className="field h-11 flex-1"
                 value={label}
                 onChange={(event) => setLabel(event.target.value)}
                 placeholder="Ex. Revenus locatifs"
@@ -346,7 +346,7 @@ export default function Freedom() {
               />
               <button
                 type="button"
-                className="btn btn-primary h-10 px-4 text-[13px]"
+                className="btn btn-primary h-11 px-4 text-[13px]"
                 disabled={saveSimulation.isPending}
                 onClick={async () => {
                   await saveSimulation.mutateAsync({
@@ -375,7 +375,7 @@ export default function Freedom() {
               <p className="label">Capital de liberté</p>
               <p className="num mt-1 text-[24px] font-semibold leading-tight">
                 {formatAmount(results.target, currency)}
-                <span className="ml-1 text-[11px] font-medium text-mist">
+                <span className="ml-1 text-[12px] font-medium text-mist">
                   {currencyLabel(currency)}
                 </span>
               </p>
@@ -447,7 +447,7 @@ export default function Freedom() {
                           }
                           aria-pressed={slot === 'a' ? isA : isB}
                           className={cn(
-                            'flex h-8 w-8 items-center justify-center rounded-full border text-[12px] font-bold transition-colors',
+                            'flex h-11 w-11 items-center justify-center rounded-full border text-[12px] font-bold transition-colors',
                             (slot === 'a' ? isA : isB)
                               ? 'border-accent bg-accent text-ink'
                               : 'border-line text-mist hover:text-snow'
@@ -459,7 +459,7 @@ export default function Freedom() {
                       ))}
                       <button
                         type="button"
-                        className="flex h-8 w-8 items-center justify-center rounded-full text-mist transition-colors hover:bg-coral/10 hover:text-coral-text"
+                        className="flex h-11 w-11 items-center justify-center rounded-full text-mist transition-colors hover:bg-coral/10 hover:text-coral-text"
                         onClick={() => deleteSimulation.mutate(simulation.id)}
                         aria-label={`Supprimer ${simulation.label ?? 'le scénario'}`}
                       >

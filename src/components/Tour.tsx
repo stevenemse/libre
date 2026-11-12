@@ -233,7 +233,7 @@ export function Tour({ open, steps, onDone }: Props) {
           <button
             type="button"
             onClick={finish}
-            className="flex h-8 w-8 items-center justify-center rounded-full bg-slate2 text-mist transition-colors hover:text-snow"
+            className="flex h-11 w-11 items-center justify-center rounded-full bg-slate2 text-mist transition-colors hover:text-snow"
             aria-label="Passer le guide"
           >
             <X size={15} strokeWidth={1.75} />
@@ -266,12 +266,12 @@ export function Tour({ open, steps, onDone }: Props) {
 
           <div className="flex items-center gap-2">
             {index > 0 ? (
-              <button type="button" className="btn btn-ghost h-10 px-3 text-[13px]" onClick={previous}>
+              <button type="button" className="btn btn-ghost h-11 px-3 text-[13px]" onClick={previous}>
                 <ArrowLeft size={15} strokeWidth={2} />
                 Retour
               </button>
             ) : null}
-            <button type="button" className="btn btn-primary h-10 px-4 text-[13px]" onClick={next}>
+            <button type="button" className="btn btn-primary h-11 px-4 text-[13px]" onClick={next}>
               {last ? 'Terminer' : 'Suivant'}
               <ArrowRight size={15} strokeWidth={2} />
             </button>

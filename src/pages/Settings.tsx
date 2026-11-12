@@ -487,7 +487,7 @@ export default function Settings() {
           </label>
           <select
             id="reminder-hour"
-            className="field h-10 w-auto appearance-none pr-8 text-[13px]"
+            className="field h-11 w-auto appearance-none pr-8 text-[13px]"
             value={data.notifications.reminder_hour}
             onChange={(event) =>
               saveNotifications.mutate({ reminder_hour: Number(event.target.value) })

@@ -110,7 +110,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
         <header className="sticky top-0 z-40 border-b border-line bg-night/85 backdrop-blur-xl">
           <div className="container-app flex h-16 items-center justify-between gap-3">
-            <Link to="/" className="shrink-0" aria-label="Libre, accueil">
+            <Link to="/" className="flex min-h-11 shrink-0 items-center" aria-label="Libre, accueil">
               <Logo size={21} />
             </Link>
 
@@ -128,7 +128,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 type="button"
                 onClick={() => openSheet('expense')}
                 data-tour="add"
-                className="btn btn-primary hidden h-10 px-4 text-sm sm:inline-flex"
+                className="btn btn-primary hidden h-11 px-4 text-sm sm:inline-flex"
               >
                 <Plus size={16} strokeWidth={2} aria-hidden="true" />
                 Ajouter
@@ -136,7 +136,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               <button
                 type="button"
                 onClick={toggleTheme}
-                className="flex h-10 w-10 items-center justify-center rounded-full text-mist transition-colors hover:bg-veil hover:text-snow"
+                className="flex h-11 w-11 items-center justify-center rounded-full text-mist transition-colors hover:bg-veil hover:text-snow"
                 aria-label={theme === 'light' ? 'Passer en mode nuit' : 'Passer en mode jour'}
                 title={theme === 'light' ? 'Mode nuit' : 'Mode jour'}
               >
@@ -149,7 +149,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               {workspace?.profile.is_admin ? (
                 <NavLink
                   to="/admin"
-                  className="flex h-10 w-10 items-center justify-center rounded-full text-mist transition-colors hover:bg-veil hover:text-snow"
+                  className="flex h-11 w-11 items-center justify-center rounded-full text-mist transition-colors hover:bg-veil hover:text-snow"
                   aria-label="Administration"
                 >
                   <ShieldCheck size={18} strokeWidth={1.75} />
@@ -157,12 +157,16 @@ export function AppShell({ children }: { children: ReactNode }) {
               ) : null}
               <NavLink
                 to="/parametres"
-                className="flex h-10 w-10 items-center justify-center rounded-full text-mist transition-colors hover:bg-veil hover:text-snow"
+                className="flex h-11 w-11 items-center justify-center rounded-full text-mist transition-colors hover:bg-veil hover:text-snow"
                 aria-label="Paramètres"
               >
                 <Settings size={18} strokeWidth={1.75} />
               </NavLink>
-              <Link to="/parametres" aria-label="Mon profil" className="hidden sm:block">
+              <Link
+                to="/parametres"
+                aria-label="Mon profil"
+                className="hidden min-h-11 min-w-11 items-center justify-center sm:flex"
+              >
                 <Avatar label={initials(firstName || emailName)} />
               </Link>
             </div>
@@ -170,7 +174,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </header>
 
         {maintenance ? (
-          <div className="border-b border-line bg-amber/10">
+          <div className="border-b border-line bg-amber/10" role="status" aria-live="polite">
             <div className="container-app flex items-center gap-2 py-2 text-[13px] text-amber-text">
               <Wrench size={14} strokeWidth={1.75} aria-hidden="true" />
               Libre est en maintenance. Tes données restent en sécurité, le temps que tout revienne
@@ -180,7 +184,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         ) : null}
 
         {!online || pending > 0 ? (
-          <div className="border-b border-line bg-slate1/70">
+          <div className="border-b border-line bg-slate1/70" role="status" aria-live="polite">
             <div className="container-app flex items-center gap-2 py-2 text-[13px] text-mist">
               <WifiOff size={14} strokeWidth={1.75} aria-hidden="true" />
               {!online
@@ -206,7 +210,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 end={item.to === '/'}
                 className={({ isActive }) =>
                   cn(
-                    'flex min-h-[52px] flex-1 flex-col items-center justify-center gap-1 rounded-2xl text-[11px] font-medium transition-colors',
+                    'flex min-h-[56px] flex-1 flex-col items-center justify-center gap-1 rounded-2xl text-[12px] font-medium transition-colors',
                     isActive ? 'text-accent-text' : 'text-mist hover:text-snow'
                   )
                 }

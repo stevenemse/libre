@@ -104,7 +104,7 @@ export default function Auth() {
               }}
               aria-pressed={mode === 'signup'}
               className={cn(
-                'h-10 rounded-full text-[14px] font-semibold transition-colors',
+                'h-11 rounded-full text-[15px] font-semibold transition-colors',
                 mode === 'signup' ? 'bg-accent text-ink' : 'text-mist hover:text-snow'
               )}
             >
@@ -119,7 +119,7 @@ export default function Auth() {
               }}
               aria-pressed={mode === 'signin'}
               className={cn(
-                'h-10 rounded-full text-[14px] font-semibold transition-colors',
+                'h-11 rounded-full text-[15px] font-semibold transition-colors',
                 mode === 'signin' ? 'bg-accent text-ink' : 'text-mist hover:text-snow'
               )}
             >
@@ -217,7 +217,7 @@ export default function Auth() {
                 setError(null);
                 setNotice(null);
               }}
-              className="flex w-full items-center justify-center gap-2 py-1 text-[13px] font-medium text-mist transition-colors hover:text-snow"
+              className="flex min-h-11 w-full items-center justify-center gap-2 py-2 text-[14px] font-medium text-mist transition-colors hover:text-snow"
             >
               <Mail size={14} strokeWidth={1.75} aria-hidden="true" />
               {mode === 'magic' ? 'Utiliser un mot de passe' : 'Recevoir un lien magique par e-mail'}

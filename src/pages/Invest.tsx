@@ -434,7 +434,7 @@ export default function Invest() {
       <section>
         <SectionTitle
           action={
-            <button type="button" className="btn btn-secondary h-9 px-3 text-[13px]" onClick={() => setAssetOpen(true)}>
+            <button type="button" className="btn btn-secondary h-11 px-3 text-[13px]" onClick={() => setAssetOpen(true)}>
               <Plus size={15} strokeWidth={2} /> Ajouter un asset
             </button>
           }
@@ -503,7 +503,7 @@ export default function Invest() {
                   </span>
                   <button
                     type="button"
-                    className="flex h-9 w-9 items-center justify-center rounded-full text-mist transition-colors hover:bg-coral/10 hover:text-coral-text"
+                    className="flex h-11 w-11 items-center justify-center rounded-full text-mist transition-colors hover:bg-coral/10 hover:text-coral-text"
                     onClick={() => {
                       if (window.confirm(`Supprimer « ${asset.name} » ?`)) deleteAsset.mutate(asset.id);
                     }}

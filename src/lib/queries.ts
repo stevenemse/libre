@@ -196,6 +196,31 @@ export function useUpdateTransaction(userId: string | undefined) {
   });
 }
 
+export function useRestoreTransaction(userId: string | undefined) {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: async (tx: Transaction) => {
+      if (!userId) throw new Error('Session expirée');
+      const { error } = await supabase.from('transactions').insert({
+        id: tx.id,
+        user_id: userId,
+        type: tx.type,
+        amount: tx.amount,
+        category_id: tx.category_id,
+        occurred_on: tx.occurred_on,
+        note: tx.note,
+        recurrence: tx.recurrence,
+        parent_tx_id: tx.parent_tx_id,
+        income_kind: tx.income_kind,
+        goal_id: tx.goal_id,
+        debt_id: tx.debt_id,
+      });
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => invalidate(userId),
+  });
+}
+
 export function useDeleteTransaction(userId: string | undefined) {
   const invalidate = useInvalidate();
   return useMutation({

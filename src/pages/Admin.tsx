@@ -167,7 +167,7 @@ export default function Admin() {
           <div className="overflow-x-auto">
             <table className="w-full min-w-[560px] border-collapse text-left">
               <thead>
-                <tr className="border-b border-line text-[11px] uppercase tracking-wide text-mist">
+                <tr className="border-b border-line text-[12px] uppercase tracking-wide text-mist">
                   <th className="py-2 pr-3 font-medium">Compte</th>
                   <th className="py-2 pr-3 font-medium">Inscrit</th>
                   <th className="py-2 pr-3 font-medium">Activité</th>
@@ -195,7 +195,7 @@ export default function Admin() {
                     <td className="py-3 text-right">
                       <span
                         className={cn(
-                          'rounded-full px-2 py-0.5 text-[11px] font-semibold',
+                          'rounded-full px-2 py-0.5 text-[12px] font-semibold',
                           account.onboarded
                             ? 'bg-accent/15 text-accent-text'
                             : 'bg-amber/15 text-amber-text'

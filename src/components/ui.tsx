@@ -1,4 +1,4 @@
-import { useEffect, useId, type ReactNode } from 'react';
+import { useEffect, useId, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { X, TriangleAlert, Info, CheckCircle2, type LucideIcon } from 'lucide-react';
 import { currencyLabel, formatAmount } from '../lib/format';
@@ -110,20 +110,64 @@ export function Sheet({
   footer?: ReactNode;
 }) {
   const titleId = useId();
+  const subtitleId = useId();
+  const panelRef = useRef<HTMLDivElement>(null);
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
 
   useEffect(() => {
     if (!open) return;
+    const panel = panelRef.current;
+    const previousFocus = document.activeElement as HTMLElement | null;
+
+    const focusables = () =>
+      panel
+        ? Array.from(
+            panel.querySelectorAll<HTMLElement>(
+              'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+            )
+          ).filter((element) => element.offsetParent !== null)
+        : [];
+
+    // Le champ principal reçoit le focus à l'ouverture : saisie immédiate au
+    // clavier comme au lecteur d'écran, sans traverser tout l'écran.
+    const first =
+      focusables().find((element) => element.dataset.autofocus === 'true') ?? focusables()[0];
+    const focusTimer = window.setTimeout(() => first?.focus(), 60);
+
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        closeRef.current();
+        return;
+      }
+      if (event.key !== 'Tab') return;
+      const list = focusables();
+      if (list.length === 0) {
+        event.preventDefault();
+        return;
+      }
+      const firstEl = list[0];
+      const lastEl = list[list.length - 1];
+      if (event.shiftKey && document.activeElement === firstEl) {
+        event.preventDefault();
+        lastEl.focus();
+      } else if (!event.shiftKey && document.activeElement === lastEl) {
+        event.preventDefault();
+        firstEl.focus();
+      }
     };
+
     document.addEventListener('keydown', onKey);
-    const previous = document.body.style.overflow;
+    const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     return () => {
+      window.clearTimeout(focusTimer);
       document.removeEventListener('keydown', onKey);
-      document.body.style.overflow = previous;
+      document.body.style.overflow = previousOverflow;
+      previousFocus?.focus?.();
     };
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open) return null;
 
@@ -135,22 +179,29 @@ export function Sheet({
       }}
     >
       <div
+        ref={panelRef}
         className="sheet"
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
+        aria-describedby={subtitle ? subtitleId : undefined}
+        tabIndex={-1}
       >
         <div className="mb-5 flex items-start justify-between gap-4">
           <div>
             <h2 id={titleId} className="text-[22px] leading-tight">
               {title}
             </h2>
-            {subtitle ? <p className="mt-1 text-sm text-mist">{subtitle}</p> : null}
+            {subtitle ? (
+              <p id={subtitleId} className="mt-1 text-sm text-mist">
+                {subtitle}
+              </p>
+            ) : null}
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate2 text-mist transition-colors hover:text-snow"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-slate2 text-mist transition-colors hover:text-snow"
             aria-label="Fermer"
           >
             <X size={18} strokeWidth={1.75} />
@@ -196,14 +247,21 @@ export function Toggle({
         disabled={disabled}
         onClick={() => onChange(!checked)}
         className={cn(
-          'relative mt-0.5 h-7 w-12 shrink-0 rounded-full border transition-colors',
-          checked ? 'border-accent bg-accent' : 'border-line bg-slate2',
+          'relative h-11 w-12 shrink-0 rounded-full',
           disabled && 'opacity-40'
         )}
       >
         <span
+          aria-hidden="true"
           className={cn(
-            'absolute top-1/2 h-5 w-5 -translate-y-1/2 rounded-full transition-all',
+            'pointer-events-none absolute left-0 top-1/2 h-7 w-12 -translate-y-1/2 rounded-full border transition-colors',
+            checked ? 'border-accent bg-accent' : 'border-line bg-slate2'
+          )}
+        />
+        <span
+          aria-hidden="true"
+          className={cn(
+            'pointer-events-none absolute top-1/2 h-5 w-5 -translate-y-1/2 rounded-full transition-all',
             checked ? 'left-6 bg-ink' : 'left-1 bg-mist'
           )}
         />
@@ -213,10 +271,10 @@ export function Toggle({
 }
 
 /* ------------------------------------------------------------ Validation */
-export function FieldError({ children }: { children?: ReactNode }) {
+export function FieldError({ children, id }: { children?: ReactNode; id?: string }) {
   if (!children) return null;
   return (
-    <p className="mt-1.5 text-[13px] text-coral-text" role="alert">
+    <p id={id} className="mt-1.5 text-[13px] text-coral-text" role="alert">
       {children}
     </p>
   );

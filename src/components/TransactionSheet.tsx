@@ -44,12 +44,14 @@ export function TransactionSheet({
   const [error, setError] = useState<string | null>(null);
   const [offlineSaved, setOfflineSaved] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [showAllCategories, setShowAllCategories] = useState(false);
 
   useEffect(() => {
     if (!open) return;
     setError(null);
     setOfflineSaved(false);
     setConfirmDelete(false);
+    setShowAllCategories(false);
     if (editing) {
       setType(editing.type);
       setAmount(String(editing.amount));
@@ -80,6 +82,27 @@ export function TransactionSheet({
   );
 
   const activeCategory = categoryId ?? suggestion?.id ?? null;
+
+  // Les catégories les plus utilisées d'abord : on reconnaît au lieu de chercher.
+  const rankedCategories = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const tx of workspace?.transactions ?? []) {
+      if (!tx.category_id) continue;
+      counts.set(tx.category_id, (counts.get(tx.category_id) ?? 0) + 1);
+    }
+    return [...categories].sort((a, b) => (counts.get(b.id) ?? 0) - (counts.get(a.id) ?? 0));
+  }, [categories, workspace?.transactions]);
+
+  // Six choix visibles au maximum (loi de Hick), le reste à la demande.
+  const visibleCategories = useMemo(() => {
+    if (showAllCategories) return rankedCategories;
+    const top = rankedCategories.slice(0, 6);
+    if (activeCategory && !top.some((category) => category.id === activeCategory)) {
+      const active = rankedCategories.find((category) => category.id === activeCategory);
+      if (active) top.unshift(active);
+    }
+    return top;
+  }, [rankedCategories, showAllCategories, activeCategory]);
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -155,8 +178,8 @@ export function TransactionSheet({
               aria-pressed={type === option}
               className={
                 type === option
-                  ? 'h-10 rounded-full bg-accent text-[14px] font-semibold text-ink'
-                  : 'h-10 rounded-full text-[14px] font-medium text-mist transition-colors hover:text-snow'
+                  ? 'h-11 rounded-full bg-accent text-[15px] font-semibold text-ink'
+                  : 'h-11 rounded-full text-[15px] font-medium text-mist transition-colors hover:text-snow'
               }
             >
               {option === 'expense' ? 'Dépense' : 'Revenu'}
@@ -173,11 +196,14 @@ export function TransactionSheet({
               id="tx-amount"
               inputMode="decimal"
               autoComplete="off"
+              enterKeyHint="done"
+              data-autofocus="true"
+              aria-invalid={Boolean(error)}
+              aria-describedby="tx-amount-unit tx-error"
               className="field h-16 pr-24 text-[28px] font-semibold"
               value={amount}
               onChange={(event) => setAmount(event.target.value)}
               placeholder="0"
-              aria-describedby="tx-amount-unit"
             />
             <span
               id="tx-amount-unit"
@@ -191,7 +217,7 @@ export function TransactionSheet({
         <div>
           <span className="field-label">Catégorie</span>
           <div className="flex flex-wrap gap-2">
-            {categories.map((category) => {
+            {visibleCategories.map((category) => {
               const active = activeCategory === category.id;
               return (
                 <button
@@ -210,6 +236,16 @@ export function TransactionSheet({
                 </button>
               );
             })}
+            {rankedCategories.length > 6 ? (
+              <button
+                type="button"
+                className="pill"
+                aria-expanded={showAllCategories}
+                onClick={() => setShowAllCategories((value) => !value)}
+              >
+                {showAllCategories ? 'Moins de catégories' : `Toutes (${rankedCategories.length})`}
+              </button>
+            ) : null}
           </div>
         </div>
 
@@ -285,7 +321,7 @@ export function TransactionSheet({
           />
         </div>
 
-        <FieldError>{error ? error : null}</FieldError>
+        <FieldError id="tx-error">{error ? error : null}</FieldError>
 
         {!isOnline() ? (
           <p className="flex items-center gap-2 text-[13px] text-mist">
@@ -295,7 +331,11 @@ export function TransactionSheet({
         ) : null}
 
         <div className="flex gap-2">
-          <button type="submit" className="btn btn-primary flex-1" disabled={busy}>
+          <button
+            type="submit"
+            className="btn btn-primary flex-1"
+            disabled={busy || amount.trim().length === 0}
+          >
             {busy ? 'Enregistrement…' : editing ? 'Enregistrer' : 'Ajouter la transaction'}
           </button>
           {editing ? (

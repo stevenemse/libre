@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ArrowDownLeft,
   ArrowUpRight,
@@ -9,6 +9,7 @@ import {
   Target,
   Trash2,
   Wallet,
+  X,
 } from 'lucide-react';
 import { useAuth } from '../lib/auth';
 import {
@@ -18,6 +19,7 @@ import {
   useDeleteGoal,
   useDeleteTransaction,
   useRepayDebt,
+  useRestoreTransaction,
   useSaveDebt,
   useWorkspace,
 } from '../lib/queries';
@@ -213,6 +215,7 @@ export default function Save() {
   const { data } = useWorkspace(userId);
   const { open: openTx } = useTxSheet();
   const deleteTransaction = useDeleteTransaction(userId);
+  const restoreTransaction = useRestoreTransaction(userId);
   const addGoal = useAddGoal(userId);
   const contributeGoal = useContributeGoal(userId);
   const deleteGoal = useDeleteGoal(userId);
@@ -233,6 +236,7 @@ export default function Save() {
   const [filter, setFilter] = useState<'all' | TxType>('all');
   const [editing, setEditing] = useState<Transaction | null>(null);
   const [editingOpen, setEditingOpen] = useState(false);
+  const [deleted, setDeleted] = useState<Transaction | null>(null);
 
   const [debtOpen, setDebtOpen] = useState(false);
   const [editingDebt, setEditingDebt] = useState<Debt | null>(null);
@@ -247,6 +251,18 @@ export default function Save() {
   const [repayAmount, setRepayAmount] = useState('');
   const [repayError, setRepayError] = useState<string | null>(null);
   const [payoffStrategy, setPayoffStrategy] = useState<'avalanche' | 'snowball'>('avalanche');
+
+  // Suppression réversible : le temps de lire le message, on peut annuler.
+  useEffect(() => {
+    if (!deleted) return;
+    const timer = window.setTimeout(() => setDeleted(null), 6000);
+    return () => window.clearTimeout(timer);
+  }, [deleted]);
+
+  const removeTransaction = (tx: Transaction) => {
+    deleteTransaction.mutate(tx.id);
+    setDeleted(tx);
+  };
 
   const derived = useMemo(() => {
     if (!data) return null;
@@ -443,7 +459,7 @@ export default function Save() {
           </label>
           <select
             id="month-select"
-            className="field h-10 w-auto appearance-none pr-8 text-[13px]"
+            className="field h-11 w-auto appearance-none pr-8 text-[13px]"
             value={month}
             onChange={(event) => setMonth(event.target.value)}
           >
@@ -455,7 +471,7 @@ export default function Save() {
           </select>
           <button
             type="button"
-            className="btn btn-primary h-10 px-4 text-[13px]"
+            className="btn btn-primary h-11 px-4 text-[13px]"
             onClick={() => openTx('expense')}
           >
             <Plus size={16} strokeWidth={2} />
@@ -499,7 +515,7 @@ export default function Save() {
               { label: 'Remboursements', value: derived.selected.debtPayments },
             ].map((item) => (
               <div key={item.label} className="rounded-2xl bg-slate2/70 p-3">
-                <dt className="text-[11px] text-mist">{item.label}</dt>
+                <dt className="text-[12px] text-mist">{item.label}</dt>
                 <dd className="num mt-1 text-[15px] font-semibold">
                   {formatAmount(item.value, currency)}
                 </dd>
@@ -534,7 +550,7 @@ export default function Save() {
           <h2 className="text-[22px]">Objectifs</h2>
           <button
             type="button"
-            className="btn btn-secondary h-10 text-[13px]"
+            className="btn btn-secondary h-11 text-[13px]"
             onClick={() => setGoalOpen(true)}
           >
             <Plus size={15} strokeWidth={2} />
@@ -567,7 +583,7 @@ export default function Save() {
                     </div>
                     <button
                       type="button"
-                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-mist transition-colors hover:bg-coral/10 hover:text-coral-text"
+                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-mist transition-colors hover:bg-coral/10 hover:text-coral-text"
                       aria-label={`Supprimer l'objectif ${goal.name}`}
                       onClick={() => {
                         if (window.confirm(`Supprimer l'objectif « ${goal.name} » ?`)) {
@@ -603,7 +619,7 @@ export default function Save() {
 
                   <button
                     type="button"
-                    className="btn btn-ghost mt-3 h-9 w-full text-[13px] text-accent-text"
+                    className="btn btn-ghost mt-3 h-11 w-full text-[13px] text-accent-text"
                     onClick={() => {
                       setFunding(goal);
                       setFundAmount('');
@@ -625,7 +641,7 @@ export default function Save() {
           <h2 className="text-[22px]">Dettes et créances</h2>
           <button
             type="button"
-            className="btn btn-secondary h-10 text-[13px]"
+            className="btn btn-secondary h-11 text-[13px]"
             onClick={() => openDebt(null)}
           >
             <Plus size={15} strokeWidth={2} />
@@ -648,7 +664,7 @@ export default function Save() {
                 { label: 'Patrimoine net', value: derived.netAssets },
               ].map((item) => (
                 <div key={item.label} className="rounded-2xl bg-slate2/70 p-3">
-                  <p className="text-[11px] text-mist">{item.label}</p>
+                  <p className="text-[12px] text-mist">{item.label}</p>
                   <p className="num mt-1 text-[15px] font-semibold">
                     {formatAmount(item.value, currency)}
                   </p>
@@ -698,7 +714,7 @@ export default function Save() {
                 <ol className="mt-3 space-y-2">
                   {orderedDebts.map((debt, index) => (
                     <li key={debt.id} className="flex items-center gap-3 text-[13px]">
-                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent text-[11px] font-bold text-ink">
+                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent text-[12px] font-bold text-ink">
                         {index + 1}
                       </span>
                       <span className="min-w-0 flex-1 truncate font-medium">{debt.title}</span>
@@ -740,7 +756,7 @@ export default function Save() {
                       <div className="flex items-center gap-1">
                         <button
                           type="button"
-                          className="flex h-9 w-9 items-center justify-center rounded-full text-mist transition-colors hover:bg-veil hover:text-snow"
+                          className="flex h-11 w-11 items-center justify-center rounded-full text-mist transition-colors hover:bg-veil hover:text-snow"
                           onClick={() => openDebt(debt)}
                           aria-label={`Modifier ${debt.title}`}
                         >
@@ -748,7 +764,7 @@ export default function Save() {
                         </button>
                         <button
                           type="button"
-                          className="flex h-9 w-9 items-center justify-center rounded-full text-mist transition-colors hover:bg-coral/10 hover:text-coral-text"
+                          className="flex h-11 w-11 items-center justify-center rounded-full text-mist transition-colors hover:bg-coral/10 hover:text-coral-text"
                           onClick={() => {
                             if (window.confirm(`Supprimer « ${debt.title} » ?`)) {
                               deleteDebt.mutate(debt.id);
@@ -817,7 +833,7 @@ export default function Save() {
                     {owedByMe && num(debt.balance) > 0 ? (
                       <button
                         type="button"
-                        className="btn btn-ghost mt-3 h-9 w-full text-[13px] text-accent-text"
+                        className="btn btn-ghost mt-3 h-11 w-full text-[13px] text-accent-text"
                         onClick={() => {
                           setRepaying(debt);
                           setRepayAmount(num(debt.monthly_payment) > 0 ? String(num(debt.monthly_payment)) : '');
@@ -925,7 +941,7 @@ export default function Save() {
                   <div className="flex items-center gap-1">
                     <button
                       type="button"
-                      className="flex h-9 w-9 items-center justify-center rounded-full text-mist transition-colors hover:bg-veil hover:text-snow"
+                      className="flex h-11 w-11 items-center justify-center rounded-full text-mist transition-colors hover:bg-veil hover:text-snow"
                       onClick={() => {
                         setEditing(tx);
                         setEditingOpen(true);
@@ -936,12 +952,8 @@ export default function Save() {
                     </button>
                     <button
                       type="button"
-                      className="flex h-9 w-9 items-center justify-center rounded-full text-mist transition-colors hover:bg-coral/10 hover:text-coral-text"
-                      onClick={() => {
-                        if (window.confirm('Supprimer cette transaction ?')) {
-                          deleteTransaction.mutate(tx.id);
-                        }
-                      }}
+                      className="flex h-11 w-11 items-center justify-center rounded-full text-mist transition-colors hover:bg-coral/10 hover:text-coral-text"
+                      onClick={() => removeTransaction(tx)}
                       aria-label={`Supprimer ${tx.note || category?.name || 'la transaction'}`}
                     >
                       <Trash2 size={15} strokeWidth={1.75} />
@@ -1242,6 +1254,40 @@ export default function Save() {
           </button>
         </form>
       </Sheet>
+
+      {deleted ? (
+        <div
+          className="fixed inset-x-0 bottom-24 z-50 px-4 lg:bottom-6"
+          role="status"
+          aria-live="polite"
+        >
+          <div className="mx-auto flex max-w-md items-center gap-2 rounded-2xl border border-line bg-slate1 p-2.5 shadow-[0_18px_50px_rgba(0,0,0,0.35)]">
+            <p className="min-w-0 flex-1 truncate px-1 text-[13px] text-mist">
+              Transaction supprimée
+              {deleted.note ? ` · ${deleted.note}` : ''}
+            </p>
+            <button
+              type="button"
+              className="btn btn-secondary h-11 px-3 text-[13px]"
+              onClick={async () => {
+                const tx = deleted;
+                setDeleted(null);
+                await restoreTransaction.mutateAsync(tx);
+              }}
+            >
+              Annuler
+            </button>
+            <button
+              type="button"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-mist transition-colors hover:bg-veil hover:text-snow"
+              aria-label="Fermer le message"
+              onClick={() => setDeleted(null)}
+            >
+              <X size={16} strokeWidth={2} />
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       <TransactionSheet
         open={editingOpen}
