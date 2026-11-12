@@ -243,7 +243,10 @@ export default function Home() {
             {action.body}
           </p>
         </div>
-        <Link to={action.cta.to} className="btn btn-secondary h-11 shrink-0 text-[13px]">
+        <Link
+          to={action.cta.to}
+          className="btn btn-secondary h-11 w-full shrink-0 justify-center text-[13px] sm:w-auto"
+        >
           {action.cta.label}
           <ArrowRight size={15} strokeWidth={2} />
         </Link>

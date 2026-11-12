@@ -134,7 +134,7 @@ export default function Tips() {
                         height={8}
                         ariaLabel={`Progression du défi ${challenge.title}`}
                       />
-                      <div className="mt-3 flex gap-2">
+                      <div className="mt-3 flex flex-wrap gap-2">
                         <button
                           type="button"
                           className="btn btn-secondary h-11 flex-1 text-[12px]"

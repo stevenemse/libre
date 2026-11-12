@@ -603,3 +603,24 @@ html[data-theme='light'] {
     white-space: nowrap;
   }
 }
+
+/* Téléphone : le texte secondaire passe à 16 px pour rester confortable à lire.
+   Hors couches, pour primer sur les utilitaires Tailwind. Les tableaux, les
+   graphiques SVG, les libellés de navigation et les boutons compacts gardent
+   leur taille : c'est là que la densité compte. */
+@media (max-width: 639px) {
+  :is(.text-\[12px\], .text-\[13px\], .text-\[14px\], .text-\[15px\]):not(
+      table *,
+      svg *,
+      .pill,
+      nav *,
+      [class*='min-h-[56px]']
+    ) {
+    font-size: 16px;
+  }
+
+  .label,
+  .field-label {
+    font-size: 16px;
+  }
+}
