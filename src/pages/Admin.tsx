@@ -157,7 +157,7 @@ export default function Admin() {
       </section>
 
       <div className="grid gap-4 lg:grid-cols-[1.2fr_1fr]">
-        <section className="card p-5 sm:p-6">
+        <section className="card min-w-0 self-start p-5 sm:p-6">
           <SectionTitle>
             <span className="inline-flex items-center gap-2">
               <Users size={18} strokeWidth={1.75} /> Comptes
@@ -218,7 +218,7 @@ export default function Admin() {
           </div>
         </section>
 
-        <div className="space-y-4">
+        <div className="min-w-0 space-y-4">
           <section className="card p-5 sm:p-6">
             <SectionTitle>
               <span className="inline-flex items-center gap-2">

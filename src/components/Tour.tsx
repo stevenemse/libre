@@ -178,11 +178,15 @@ export function Tour({ open, steps, onDone }: Props) {
     const top = fitsBelow ? below : Math.max(16, rect.top - cardHeight - 14);
     cardStyle = { top, left, width };
   } else if (rect && mobile) {
-    cardStyle = {
-      left: 16,
-      right: 16,
-      bottom: 'calc(84px + env(safe-area-inset-bottom))',
-    };
+    // Par défaut la carte se pose au-dessus de la barre de navigation. Si elle
+    // recouvre l'élément visé (le bouton d'ajout, par exemple), on la remonte
+    // en haut de l'écran pour laisser l'élément visible.
+    const bottomTop = window.innerHeight - 84 - cardHeight;
+    const hides = (top: number) => rect.bottom > top - 8 && rect.top < top + cardHeight + 8;
+    const moveToTop = hides(bottomTop) && !hides(16);
+    cardStyle = moveToTop
+      ? { left: 16, right: 16, top: 16 }
+      : { left: 16, right: 16, bottom: 'calc(84px + env(safe-area-inset-bottom))' };
   } else {
     cardStyle = mobile
       ? { left: 16, right: 16, bottom: 'calc(84px + env(safe-area-inset-bottom))' }
@@ -247,8 +251,14 @@ export function Tour({ open, steps, onDone }: Props) {
           {step.body}
         </p>
 
-        <div className="mt-5 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-1.5" role="group" aria-label="Progression du guide">
+        <div className="mt-5 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+          {/* Sur téléphone, le compteur « Étape n sur N » suffit : douze pastilles
+              ne tenaient pas à côté des boutons et débordaient de la carte. */}
+          <div
+            className="hidden items-center gap-1.5 sm:flex"
+            role="group"
+            aria-label="Progression du guide"
+          >
             {steps.map((item, dotIndex) => (
               <button
                 key={item.id}
@@ -256,15 +266,19 @@ export function Tour({ open, steps, onDone }: Props) {
                 onClick={() => setIndex(dotIndex)}
                 aria-label={`Aller à l'étape ${dotIndex + 1}`}
                 aria-current={dotIndex === index}
-                className={cn(
-                  'h-1.5 rounded-full transition-all',
-                  dotIndex === index ? 'w-5 bg-accent' : 'w-1.5 bg-line-strong hover:bg-mist/60'
-                )}
-              />
+                className="flex h-6 w-5 items-center justify-center rounded-full"
+              >
+                <span
+                  className={cn(
+                    'block h-1.5 rounded-full transition-all',
+                    dotIndex === index ? 'w-5 bg-accent' : 'w-1.5 bg-line-strong hover:bg-mist/60'
+                  )}
+                />
+              </button>
             ))}
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="ml-auto flex items-center gap-2">
             {index > 0 ? (
               <button type="button" className="btn btn-ghost h-11 px-3 text-[13px]" onClick={previous}>
                 <ArrowLeft size={15} strokeWidth={2} />

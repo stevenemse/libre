@@ -226,15 +226,18 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         </nav>
 
-        <button
-          type="button"
-          onClick={() => openSheet('expense')}
-          data-tour="add"
-          className="fixed bottom-24 right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-accent text-ink shadow-[0_8px_28px_rgba(168,255,0,0.22)] transition-transform active:scale-95 lg:hidden"
-          aria-label="Ajouter une transaction"
-        >
-          <Plus size={24} strokeWidth={2.2} />
-        </button>
+        {/* Pas de bouton d'ajout sur l'administration : il recouvrirait les actions du panneau. */}
+        {location.pathname !== '/admin' ? (
+          <button
+            type="button"
+            onClick={() => openSheet('expense')}
+            data-tour="add"
+            className="fixed bottom-24 right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-accent text-ink shadow-[0_8px_28px_rgba(168,255,0,0.22)] transition-transform active:scale-95 lg:hidden"
+            aria-label="Ajouter une transaction"
+          >
+            <Plus size={24} strokeWidth={2.2} />
+          </button>
+        ) : null}
 
         <TransactionSheet
           open={sheetOpen}
