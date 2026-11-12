@@ -196,6 +196,59 @@ export function useUpdateTransaction(userId: string | undefined) {
   });
 }
 
+/**
+ * Un remboursement de dette et un versement d'objectif modifient aussi le solde
+ * de la dette et la progression de l'objectif. Supprimer la transaction doit
+ * rendre ces montants, et l'annulation de la suppression doit les réappliquer.
+ * `back` = on annule l'effet, `again` = on le rejoue.
+ */
+async function shiftLinkedAmounts(
+  tx: Pick<Transaction, 'amount' | 'debt_id' | 'goal_id'>,
+  direction: 'back' | 'again'
+) {
+  const amount = Number(tx.amount) || 0;
+  if (amount <= 0) return;
+
+  if (tx.debt_id) {
+    const { data: debt, error } = await supabase
+      .from('debts')
+      .select('balance')
+      .eq('id', tx.debt_id)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (debt) {
+      const current = Number(debt.balance) || 0;
+      const next = direction === 'back' ? current + amount : Math.max(0, current - amount);
+      const patch: Record<string, unknown> = { balance: next };
+      // Même règle qu'au remboursement : une dette soldée ne garde pas de mensualité.
+      if (direction === 'again' && next === 0) patch.monthly_payment = 0;
+      const { error: updateError } = await supabase
+        .from('debts')
+        .update(patch)
+        .eq('id', tx.debt_id);
+      if (updateError) throw new Error(updateError.message);
+    }
+  }
+
+  if (tx.goal_id) {
+    const { data: goal, error } = await supabase
+      .from('goals')
+      .select('current_amount')
+      .eq('id', tx.goal_id)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (goal) {
+      const current = Number(goal.current_amount) || 0;
+      const next = direction === 'back' ? Math.max(0, current - amount) : current + amount;
+      const { error: updateError } = await supabase
+        .from('goals')
+        .update({ current_amount: next })
+        .eq('id', tx.goal_id);
+      if (updateError) throw new Error(updateError.message);
+    }
+  }
+}
+
 export function useRestoreTransaction(userId: string | undefined) {
   const invalidate = useInvalidate();
   return useMutation({
@@ -216,6 +269,7 @@ export function useRestoreTransaction(userId: string | undefined) {
         debt_id: tx.debt_id,
       });
       if (error) throw new Error(error.message);
+      await shiftLinkedAmounts(tx, 'again');
     },
     onSuccess: () => invalidate(userId),
   });
@@ -224,9 +278,10 @@ export function useRestoreTransaction(userId: string | undefined) {
 export function useDeleteTransaction(userId: string | undefined) {
   const invalidate = useInvalidate();
   return useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from('transactions').delete().eq('id', id);
+    mutationFn: async (tx: Pick<Transaction, 'id' | 'amount' | 'debt_id' | 'goal_id'>) => {
+      const { error } = await supabase.from('transactions').delete().eq('id', tx.id);
       if (error) throw new Error(error.message);
+      await shiftLinkedAmounts(tx, 'back');
     },
     onSuccess: () => invalidate(userId),
   });
@@ -535,7 +590,9 @@ export function useContributeGoal(userId: string | undefined) {
         type: 'expense',
         amount,
         category_id: null,
-        goal_id: debtId ? null : id,
+        // Les deux liens sont gardés : la suppression saura rendre le solde de
+        // la dette et la progression de l'objectif.
+        goal_id: id,
         debt_id: debtId,
         occurred_on: new Date().toISOString().slice(0, 10),
         note: debtId ? `Remboursement : ${goal?.name ?? 'dette'}` : `Versement : ${goal?.name ?? 'objectif'}`,

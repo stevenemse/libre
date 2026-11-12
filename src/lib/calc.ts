@@ -302,12 +302,14 @@ export function monthlySummaries(
     const amount = num(tx.amount);
     if (tx.type === 'income') {
       bucket.income += amount;
+    } else if (tx.debt_id) {
+      // Remboursement de dette : sort de l'épargne, compté à part. Testé avant
+      // l'objectif : un versement sur un objectif rattaché à une dette
+      // rembourse bien la dette.
+      bucket.debt += amount;
     } else if (tx.goal_id) {
       // Versement sur objectif : sort de l'épargne, sans gonfler les besoins.
       bucket.savingsOut += amount;
-    } else if (tx.debt_id) {
-      // Remboursement de dette : sort de l'épargne, compté à part.
-      bucket.debt += amount;
     } else {
       const kind = tx.category_id ? categoryKinds.get(tx.category_id) : null;
       if (kind === 'need') bucket.needs += amount;

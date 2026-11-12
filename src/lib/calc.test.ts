@@ -477,6 +477,23 @@ describe('dettes et patrimoine net', () => {
     expect(summaries[0].debtPayments).toBe(60_000);
     expect(summaries[0].savings).toBe(90_000);
   });
+
+  it('compte un versement d’objectif rattaché à une dette comme remboursement', () => {
+    const now = new Date(2026, 4, 15);
+    const rows = [
+      tx({ occurred_on: '2026-05-10', amount: 20_000, debt_id: 'd1', goal_id: 'g1' }),
+      tx({ occurred_on: '2026-05-02', amount: 250_000, type: 'income' }),
+    ];
+    const summaries = monthlySummaries(
+      rows,
+      new Map(),
+      { income: 250_000, needs: 100_000, debtPayments: 0 },
+      1,
+      now
+    );
+    expect(summaries[0].debtPayments).toBe(20_000);
+    expect(summaries[0].savingsOut).toBe(0);
+  });
 });
 
 describe('coût du crédit et ordre de remboursement', () => {

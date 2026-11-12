@@ -347,7 +347,7 @@ export function TransactionSheet({
                   setConfirmDelete(true);
                   return;
                 }
-                await deleteTransaction.mutateAsync(editing.id);
+                await deleteTransaction.mutateAsync(editing);
                 onClose();
               }}
               aria-label="Supprimer la transaction"

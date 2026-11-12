@@ -260,7 +260,7 @@ export default function Save() {
   }, [deleted]);
 
   const removeTransaction = (tx: Transaction) => {
-    deleteTransaction.mutate(tx.id);
+    deleteTransaction.mutate(tx);
     setDeleted(tx);
   };
 
