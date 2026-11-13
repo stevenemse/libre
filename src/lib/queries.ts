@@ -161,6 +161,8 @@ function useInvalidate() {
 export function useAddTransaction(userId: string | undefined) {
   const invalidate = useInvalidate();
   return useMutation({
+    // Doit s'exécuter même hors-ligne : la mutation met la saisie en file locale.
+    networkMode: 'always',
     mutationFn: async (input: {
       type: Transaction['type'];
       amount: number;
@@ -189,8 +191,139 @@ export function useUpdateTransaction(userId: string | undefined) {
   const invalidate = useInvalidate();
   return useMutation({
     mutationFn: async ({ id, patch }: { id: string; patch: Partial<Transaction> }) => {
+      // On lit l'ancienne transaction pour pouvoir ajuster le solde de la dette
+      // et la progression de l'objectif à la différence (ou au changement de lien).
+      const { data: oldRow, error: readError } = await supabase
+        .from('transactions')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
+      if (readError) throw new Error(readError.message);
+      const oldTx = (oldRow as Transaction | null) ?? null;
+
       const { error } = await supabase.from('transactions').update(patch).eq('id', id);
       if (error) throw new Error(error.message);
+
+      if (!oldTx) return;
+
+      const oldAmount = Number(oldTx.amount) || 0;
+      const newAmount =
+        patch.amount !== undefined ? Number(patch.amount) || 0 : oldAmount;
+      const oldDebtId = oldTx.debt_id;
+      const newDebtId = patch.debt_id !== undefined ? patch.debt_id : oldDebtId;
+      const oldGoalId = oldTx.goal_id;
+      const newGoalId = patch.goal_id !== undefined ? patch.goal_id : oldGoalId;
+
+      const amountChanged = patch.amount !== undefined && newAmount !== oldAmount;
+      const debtChanged = newDebtId !== oldDebtId;
+      const goalChanged = newGoalId !== oldGoalId;
+      if (!amountChanged && !debtChanged && !goalChanged) return;
+
+      // --- Dette ---
+      if (oldDebtId && oldDebtId !== newDebtId) {
+        // lien retiré : rendre l'ancien montant
+        const { data: debt } = await supabase
+          .from('debts')
+          .select('balance')
+          .eq('id', oldDebtId)
+          .maybeSingle();
+        if (debt) {
+          const current = Number(debt.balance) || 0;
+          const { error: updateError } = await supabase
+            .from('debts')
+            .update({ balance: current + oldAmount })
+            .eq('id', oldDebtId);
+          if (updateError) throw new Error(updateError.message);
+        }
+      }
+      if (newDebtId && newDebtId !== oldDebtId) {
+        // lien ajouté : appliquer le nouveau montant
+        const { data: debt } = await supabase
+          .from('debts')
+          .select('balance, monthly_payment')
+          .eq('id', newDebtId)
+          .maybeSingle();
+        if (debt) {
+          const current = Number(debt.balance) || 0;
+          const next = Math.max(0, current - newAmount);
+          const debtPatch: Record<string, unknown> = { balance: next };
+          if (next === 0) debtPatch.monthly_payment = 0;
+          const { error: updateError } = await supabase
+            .from('debts')
+            .update(debtPatch)
+            .eq('id', newDebtId);
+          if (updateError) throw new Error(updateError.message);
+        }
+      }
+      if (oldDebtId && oldDebtId === newDebtId && amountChanged) {
+        const { data: debt } = await supabase
+          .from('debts')
+          .select('balance, monthly_payment')
+          .eq('id', oldDebtId)
+          .maybeSingle();
+        if (debt) {
+          const current = Number(debt.balance) || 0;
+          const delta = newAmount - oldAmount;
+          const next = Math.max(0, current - delta);
+          const debtPatch: Record<string, unknown> = { balance: next };
+          if (next === 0) debtPatch.monthly_payment = 0;
+          const { error: updateError } = await supabase
+            .from('debts')
+            .update(debtPatch)
+            .eq('id', oldDebtId);
+          if (updateError) throw new Error(updateError.message);
+        }
+      }
+
+      // --- Objectif ---
+      if (oldGoalId && oldGoalId !== newGoalId) {
+        const { data: goal } = await supabase
+          .from('goals')
+          .select('current_amount')
+          .eq('id', oldGoalId)
+          .maybeSingle();
+        if (goal) {
+          const current = Number(goal.current_amount) || 0;
+          const next = Math.max(0, current - oldAmount);
+          const { error: updateError } = await supabase
+            .from('goals')
+            .update({ current_amount: next })
+            .eq('id', oldGoalId);
+          if (updateError) throw new Error(updateError.message);
+        }
+      }
+      if (newGoalId && newGoalId !== oldGoalId) {
+        const { data: goal } = await supabase
+          .from('goals')
+          .select('current_amount')
+          .eq('id', newGoalId)
+          .maybeSingle();
+        if (goal) {
+          const current = Number(goal.current_amount) || 0;
+          const { error: updateError } = await supabase
+            .from('goals')
+            .update({ current_amount: current + newAmount })
+            .eq('id', newGoalId);
+          if (updateError) throw new Error(updateError.message);
+        }
+      }
+      if (oldGoalId && oldGoalId === newGoalId && amountChanged) {
+        const { data: goal } = await supabase
+          .from('goals')
+          .select('current_amount')
+          .eq('id', oldGoalId)
+          .maybeSingle();
+        if (goal) {
+          const current = Number(goal.current_amount) || 0;
+          const delta = newAmount - oldAmount;
+          const next = Math.max(0, current + delta);
+          const { error: updateError } = await supabase
+            .from('goals')
+            .update({ current_amount: next })
+            .eq('id', oldGoalId);
+          if (updateError) throw new Error(updateError.message);
+        }
+      }
     },
     onSuccess: () => invalidate(userId),
   });

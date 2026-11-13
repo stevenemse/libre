@@ -303,7 +303,10 @@ export default function Invest() {
                   'Enregistrer la répartition'
                 )}
               </button>
-              <Link to="/conseils" className="text-[13px] font-semibold text-accent-text">
+              <Link
+                to="/conseils"
+                className="inline-flex min-h-11 items-center text-[13px] font-semibold text-accent-text"
+              >
                 Comprendre les poches
               </Link>
             </div>

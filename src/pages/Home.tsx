@@ -294,7 +294,7 @@ export default function Home() {
             </div>
             <Link
               to="/epargner"
-              className="flex h-12 w-12 items-center justify-center rounded-full bg-ink/10 text-ink transition-colors hover:bg-ink/20"
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-ink/10 text-ink transition-colors hover:bg-ink/20"
               aria-label="Voir le détail de mon épargne"
             >
               <ArrowUpRight size={20} strokeWidth={1.75} />
