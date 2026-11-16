@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { supabase } from './supabase';
 import { flushPendingTransactions, pendingCount, queueTransaction, isOnline } from './offline';
+import { findDebtByCounterparty, mergeDebtValues } from './debts';
 import type {
   AdminAccount,
   AdminHealth,
@@ -576,10 +577,45 @@ export function useSaveDebt(userId: string | undefined) {
     }) => {
       if (!userId) throw new Error('Session expirée');
       const { id, ...payload } = input;
+      const counterparty = payload.counterparty?.trim() || null;
+
+      // Même prêteur/débiteur : on complète la dette existante au lieu de créer
+      // une deuxième ligne pour la même personne.
+      if (!id && counterparty) {
+        const { data: existing, error: readError } = await supabase
+          .from('debts')
+          .select('*')
+          .eq('user_id', userId)
+          .eq('direction', payload.direction);
+        if (readError) throw new Error(readError.message);
+        const target = findDebtByCounterparty(
+          (existing ?? []) as Debt[],
+          payload.direction,
+          counterparty
+        );
+        if (target) {
+          const { error } = await supabase
+            .from('debts')
+            .update(
+              mergeDebtValues(target, {
+                balance: payload.balance,
+                monthly_payment: payload.monthly_payment,
+                interest_rate: payload.interest_rate,
+                due_date: payload.due_date,
+              })
+            )
+            .eq('id', target.id);
+          if (error) throw new Error(error.message);
+          return { merged: true, id: target.id };
+        }
+      }
+
+      const next = { ...payload, counterparty };
       const { error } = id
-        ? await supabase.from('debts').update(payload).eq('id', id)
-        : await supabase.from('debts').insert({ ...payload, user_id: userId });
+        ? await supabase.from('debts').update(next).eq('id', id)
+        : await supabase.from('debts').insert({ ...next, user_id: userId });
       if (error) throw new Error(error.message);
+      return { merged: false, id: id ?? null };
     },
     onSuccess: () => invalidate(userId),
   });

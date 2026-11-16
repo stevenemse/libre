@@ -55,6 +55,7 @@ import {
   shortMonthLabel,
 } from '../lib/calc';
 import { categoryIcon } from '../lib/icons';
+import { debtCounterparties, findDebtByCounterparty, normalizeCounterparty } from '../lib/debts';
 import { TransactionSheet } from '../components/TransactionSheet';
 import type { Debt, Goal, Transaction, TxType } from '../lib/types';
 
@@ -252,6 +253,18 @@ export default function Save() {
   const [repayError, setRepayError] = useState<string | null>(null);
   const [payoffStrategy, setPayoffStrategy] = useState<'avalanche' | 'snowball'>('avalanche');
 
+  const counterparties = useMemo(
+    () => debtCounterparties(data?.debts ?? [], debtDirection),
+    [data?.debts, debtDirection]
+  );
+  const mergeTarget = useMemo(
+    () =>
+      editingDebt
+        ? undefined
+        : findDebtByCounterparty(data?.debts ?? [], debtDirection, debtCounterparty),
+    [data?.debts, debtDirection, debtCounterparty, editingDebt]
+  );
+
   // Suppression réversible : le temps de lire le message, on peut annuler.
   useEffect(() => {
     if (!deleted) return;
@@ -384,7 +397,8 @@ export default function Save() {
     setDebtError(null);
     const balance = parseAmount(debtBalance);
     const monthly = parseAmount(debtMonthly);
-    if (!debtTitle.trim()) {
+    const title = mergeTarget ? mergeTarget.title : debtTitle.trim();
+    if (!title) {
       setDebtError('Donne un nom à cette dette ou créance.');
       return;
     }
@@ -395,7 +409,7 @@ export default function Save() {
     try {
       await saveDebt.mutateAsync({
         id: editingDebt?.id,
-        title: debtTitle.trim(),
+        title,
         direction: debtDirection,
         counterparty: debtCounterparty.trim() || null,
         balance: Math.max(0, balance),
@@ -1135,30 +1149,84 @@ export default function Save() {
 
           <div>
             <label htmlFor="debt-title" className="field-label">
-              Nom
+              Nom de la dette
             </label>
             <input
               id="debt-title"
-              className="field"
-              value={debtTitle}
+              className="field disabled:opacity-70"
+              value={mergeTarget ? mergeTarget.title : debtTitle}
               onChange={(event) => setDebtTitle(event.target.value)}
               placeholder="Ex. Crédit moto"
               maxLength={60}
+              disabled={Boolean(mergeTarget)}
             />
+            {mergeTarget ? (
+              <p className="label mt-1">Le nom de la dette existante est conservé.</p>
+            ) : null}
           </div>
 
           <div>
             <label htmlFor="debt-counterparty" className="field-label">
-              Prêteur ou débiteur <span className="font-normal text-mist">(facultatif)</span>
+              {debtDirection === 'owed_by_me' ? 'Prêteur' : 'Débiteur'}{' '}
+              <span className="font-normal text-mist">(facultatif)</span>
             </label>
             <input
               id="debt-counterparty"
               className="field"
               value={debtCounterparty}
               onChange={(event) => setDebtCounterparty(event.target.value)}
-              placeholder="Ex. Banque, un proche"
+              placeholder={
+                debtDirection === 'owed_by_me' ? 'Ex. Banque, un proche' : 'Ex. Un ami, un client'
+              }
               maxLength={60}
+              list="debt-counterparties"
+              autoComplete="off"
             />
+            <datalist id="debt-counterparties">
+              {counterparties.map((name) => (
+                <option key={name} value={name} />
+              ))}
+            </datalist>
+            {counterparties.length > 0 ? (
+              <div className="mt-2">
+                <p className="label">
+                  {debtDirection === 'owed_by_me' ? 'Prêteurs existants' : 'Débiteurs existants'}
+                </p>
+                <div
+                  className="mt-1 flex flex-wrap gap-1.5"
+                  role="group"
+                  aria-label={
+                    debtDirection === 'owed_by_me' ? 'Prêteurs existants' : 'Débiteurs existants'
+                  }
+                >
+                  {counterparties.map((name) => (
+                    <button
+                      key={name}
+                      type="button"
+                      className="pill"
+                      aria-pressed={
+                        normalizeCounterparty(debtCounterparty) === normalizeCounterparty(name)
+                      }
+                      onClick={() => setDebtCounterparty(name)}
+                    >
+                      {name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <p className="label mt-1">
+                Saisis un nom : il sera proposé pour tes prochaines dettes.
+              </p>
+            )}
+            {mergeTarget ? (
+              <div className="mt-3">
+                <Alert tone="info" title={`Fusion avec « ${mergeTarget.title} »`}>
+                  Le solde et la mensualité seront ajoutés à cette dette existante. Solde actuel :{' '}
+                  {formatAmount(num(mergeTarget.balance), currency)} {currencyLabel(currency)}.
+                </Alert>
+              </div>
+            ) : null}
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
@@ -1212,7 +1280,13 @@ export default function Save() {
           <FieldError>{debtError}</FieldError>
 
           <button type="submit" className="btn btn-primary w-full" disabled={saveDebt.isPending}>
-            {saveDebt.isPending ? 'Enregistrement…' : editingDebt ? 'Mettre à jour' : 'Enregistrer'}
+            {saveDebt.isPending
+              ? 'Enregistrement…'
+              : editingDebt
+                ? 'Mettre à jour'
+                : mergeTarget
+                  ? 'Ajouter à cette dette'
+                  : 'Enregistrer'}
           </button>
         </form>
       </Sheet>
