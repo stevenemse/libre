@@ -158,20 +158,17 @@ function useInvalidate() {
     client.invalidateQueries({ queryKey: wsKey(userId) });
 }
 
-export function useAddTransaction(userId: string | undefined) {
-  const invalidate = useInvalidate();
-  return useMutation({
+type AddTransactionInput = Pick<
+  Transaction,
+  'type' | 'amount' | 'category_id' | 'note' | 'occurred_on' | 'recurrence' | 'income_kind'
+>;
+
+/** Options pures de la mutation, testables sans React. */
+export function addTransactionMutationOptions(userId: string | undefined) {
+  return {
     // Doit s'exécuter même hors-ligne : la mutation met la saisie en file locale.
-    networkMode: 'always',
-    mutationFn: async (input: {
-      type: Transaction['type'];
-      amount: number;
-      category_id: string | null;
-      note: string | null;
-      occurred_on: string;
-      recurrence: Transaction['recurrence'];
-      income_kind: Transaction['income_kind'];
-    }) => {
+    networkMode: 'always' as const,
+    mutationFn: async (input: AddTransactionInput) => {
       if (!userId) throw new Error('Session expirée');
       if (!isOnline()) {
         const queued = queueTransaction({ ...input, user_id: userId });
@@ -183,6 +180,13 @@ export function useAddTransaction(userId: string | undefined) {
       if (error) throw new Error(error.message);
       return { queued: false, id: crypto.randomUUID() };
     },
+  };
+}
+
+export function useAddTransaction(userId: string | undefined) {
+  const invalidate = useInvalidate();
+  return useMutation({
+    ...addTransactionMutationOptions(userId),
     onSuccess: () => invalidate(userId),
   });
 }
