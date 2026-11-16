@@ -48,6 +48,8 @@ seule la clé publiable est utilisée dans l'application, et la sécurité repos
 
 ## Déploiement
 
+L'application est en production sur [libre-coach.vercel.app](https://libre-coach.vercel.app).
+
 `npm run build` produit un SPA statique dans `dist/`. Le fichier `vercel.json` fournit la
 réécriture vers `index.html` (sans elle, `/liberte` renvoie une 404 au rafraîchissement) et les
 en-têtes de cache du service worker et des assets.
