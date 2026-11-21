@@ -183,7 +183,7 @@ export function GameCard({
 
       {levelUp ? (
         <div
-          className="fixed inset-x-4 bottom-24 z-50 mx-auto flex max-w-md items-center gap-3 rounded-2xl border border-accent/40 bg-slate1 p-4 shadow-2xl lg:bottom-6"
+          className="fade-up fixed inset-x-4 bottom-24 z-50 mx-auto flex max-w-md items-center gap-3 rounded-2xl border border-accent/40 bg-slate1 p-4 shadow-2xl lg:bottom-6"
           role="status"
           aria-live="polite"
         >

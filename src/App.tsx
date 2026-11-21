@@ -1,6 +1,6 @@
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom';
 import { AppShell } from './components/AppShell';
-import { Logo } from './components/ui';
+import { Logo, PageSkeleton } from './components/ui';
 import { useAuth } from './lib/auth';
 import { useRecurringTransactions, useWorkspace } from './lib/queries';
 import Auth from './pages/Auth';
@@ -15,10 +15,16 @@ import Admin from './pages/Admin';
 
 function Splash({ label = 'On prépare ton espace…' }: { label?: string }) {
   return (
-    <div className="flex min-h-[70dvh] flex-col items-center justify-center gap-5">
-      <Logo size={30} />
-      <div className="h-1 w-24 overflow-hidden rounded-full bg-line">
-        <div className="h-full w-1/2 animate-[shimmer_1.2s_linear_infinite] rounded-full bg-accent" />
+    <div
+      className="flex min-h-[70dvh] flex-col items-center justify-center gap-5"
+      role="status"
+      aria-live="polite"
+    >
+      <span className="splash-logo">
+        <Logo size={30} />
+      </span>
+      <div className="relative h-1 w-28 overflow-hidden rounded-full bg-line">
+        <div className="load-bar absolute inset-y-0 left-0 w-1/2 rounded-full bg-accent" />
       </div>
       <p className="text-sm text-mist">{label}</p>
     </div>
@@ -38,7 +44,15 @@ function Protected() {
 
   if (loading) return <Splash />;
   if (!session) return <Navigate to="/connexion" replace />;
-  if (isLoading) return <Splash />;
+  // La session est là : on affiche tout de suite la coquille et un squelette
+  // animé, plutôt qu'un écran d'attente plein page.
+  if (isLoading) {
+    return (
+      <AppShell>
+        <PageSkeleton />
+      </AppShell>
+    );
+  }
 
   if (error) {
     return (

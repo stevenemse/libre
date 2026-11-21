@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, type ReactNode } from 'react';
+import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { X, TriangleAlert, Info, CheckCircle2, type LucideIcon } from 'lucide-react';
 import { currencyLabel, formatAmount } from '../lib/format';
@@ -38,6 +38,18 @@ export function ProgressBar({
   ariaLabel?: string;
 }) {
   const pct = Math.max(0, Math.min(1, Number.isFinite(value) ? value : 0));
+  // La barre part de zéro puis se remplit : on voit la progression se faire.
+  const [shown, setShown] = useState(0);
+
+  useEffect(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setShown(pct);
+      return;
+    }
+    const frame = window.requestAnimationFrame(() => setShown(pct));
+    return () => window.cancelAnimationFrame(frame);
+  }, [pct]);
+
   const fill =
     tone === 'danger'
       ? 'bg-coral'
@@ -58,8 +70,8 @@ export function ProgressBar({
         aria-label={ariaLabel ?? label ?? 'Progression'}
       >
         <div
-          className={cn('h-full rounded-full transition-[width] duration-500 ease-out', fill)}
-          style={{ width: `${Math.max(pct * 100, pct > 0 ? 3 : 0)}%` }}
+          className={cn('h-full rounded-full transition-[width] duration-700 ease-out', fill)}
+          style={{ width: `${Math.max(shown * 100, shown > 0 ? 3 : 0)}%` }}
         />
       </div>
       {label ? <p className="label mt-2">{label}</p> : null}
@@ -112,8 +124,34 @@ export function Sheet({
   const titleId = useId();
   const subtitleId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
-  const closeRef = useRef(onClose);
-  closeRef.current = onClose;
+  const [closing, setClosing] = useState(false);
+  const closingRef = useRef(false);
+  const closeTimer = useRef<number | undefined>(undefined);
+
+  // Fermeture animée : le panneau sort avant que le parent ne le démonte.
+  const requestClose = useCallback(() => {
+    if (closingRef.current) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      onClose();
+      return;
+    }
+    closingRef.current = true;
+    setClosing(true);
+    closeTimer.current = window.setTimeout(onClose, 170);
+  }, [onClose]);
+
+  const closeRef = useRef(requestClose);
+  closeRef.current = requestClose;
+
+  useEffect(() => {
+    if (!open) return;
+    closingRef.current = false;
+    setClosing(false);
+  }, [open]);
+
+  useEffect(() => () => {
+    if (closeTimer.current) window.clearTimeout(closeTimer.current);
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -173,14 +211,14 @@ export function Sheet({
 
   return createPortal(
     <div
-      className="sheet-backdrop"
+      className={cn('sheet-backdrop', closing && 'is-closing')}
       onClick={(event) => {
-        if (event.target === event.currentTarget) onClose();
+        if (event.target === event.currentTarget) requestClose();
       }}
     >
       <div
         ref={panelRef}
-        className="sheet"
+        className={cn('sheet', closing && 'is-closing')}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
@@ -200,7 +238,7 @@ export function Sheet({
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={requestClose}
             className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-slate2 text-mist transition-colors hover:text-snow"
             aria-label="Fermer"
           >
