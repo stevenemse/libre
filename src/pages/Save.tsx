@@ -56,6 +56,7 @@ import {
 } from '../lib/calc';
 import { categoryIcon } from '../lib/icons';
 import { debtCounterparties, findDebtByCounterparty, normalizeCounterparty } from '../lib/debts';
+import { debtBosses } from '../lib/game';
 import { TransactionSheet } from '../components/TransactionSheet';
 import type { Debt, Goal, Transaction, TxType } from '../lib/types';
 
@@ -263,6 +264,13 @@ export default function Save() {
         ? undefined
         : findDebtByCounterparty(data?.debts ?? [], debtDirection, debtCounterparty),
     [data?.debts, debtDirection, debtCounterparty, editingDebt]
+  );
+  const bossById = useMemo(
+    () =>
+      new Map(
+        debtBosses(data?.debts ?? [], data?.transactions ?? []).map((boss) => [boss.id, boss])
+      ),
+    [data?.debts, data?.transactions]
   );
 
   // Suppression réversible : le temps de lire le message, on peut annuler.
@@ -754,6 +762,7 @@ export default function Save() {
             <ul className="grid gap-3 sm:grid-cols-2">
               {data.debts.map((debt) => {
                 const owedByMe = debt.direction === 'owed_by_me';
+                const boss = bossById.get(debt.id);
                 return (
                   <li key={debt.id} className="card p-4 sm:p-5">
                     <div className="flex items-start justify-between gap-3">
@@ -804,6 +813,29 @@ export default function Save() {
                         </p>
                       ) : null}
                     </div>
+
+                    {owedByMe && boss && boss.original > 0 ? (
+                      <div className="mt-3">
+                        <ProgressBar
+                          value={boss.progress}
+                          height={6}
+                          tone={boss.cleared ? 'accent' : 'danger'}
+                          ariaLabel={`Progression du remboursement de ${debt.title}`}
+                        />
+                        <div className="mt-1 flex flex-wrap items-center justify-between gap-1 text-[11px] text-mist">
+                          <span>
+                            {boss.cleared
+                              ? 'Boss vaincu'
+                              : `${Math.round(boss.progress * 100)} % remboursé`}
+                          </span>
+                          <span>
+                            {boss.repaid > 0
+                              ? `${formatAmount(boss.repaid, currency)} remboursés`
+                              : 'Suivi à partir de maintenant'}
+                          </span>
+                        </div>
+                      </div>
+                    ) : null}
 
                     {owedByMe
                       ? (() => {

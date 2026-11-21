@@ -12,7 +12,6 @@ import {
   Plus,
   ShieldCheck,
   Sparkles,
-  Target,
   TrendingDown,
   TrendingUp,
 } from 'lucide-react';
@@ -41,7 +40,6 @@ import {
   monthLabel,
   monthlySummaries,
   netWorth,
-  nextAction,
   num,
   receivableTotal,
   pocketAmounts,
@@ -49,6 +47,8 @@ import {
   weeklyReview,
 } from '../lib/calc';
 import { categoryIcon } from '../lib/icons';
+import { gameStatsForWorkspace } from '../lib/game';
+import { DebtBossCard, GameCard } from '../components/GameCard';
 import type { Tip } from '../lib/types';
 
 const POCKETS = [
@@ -174,7 +174,9 @@ export default function Home() {
     };
   }, [data]);
 
-  if (!data || !derived) return null;
+  const game = useMemo(() => (data ? gameStatsForWorkspace(data) : null), [data]);
+
+  if (!data || !derived || !game) return null;
 
   const currency = data.profile.currency;
   const coach = coachMessage(derived.income, derived.needs, derived.rate, num(data.profile.savings_rate_goal));
@@ -192,19 +194,6 @@ export default function Home() {
     num(data.allocation.pct_subsistence) +
     num(data.allocation.pct_assets) +
     num(data.allocation.pct_protection);
-
-  const action = nextAction({
-    onboarded: data.profile.onboarded,
-    transactionCount: data.transactions.length,
-    monthIncome: derived.income,
-    monthExpenses: derived.needs + derived.wants,
-    savingsRate: derived.rate,
-    goalRate,
-    emergencySaved,
-    emergencyTarget: derived.emergencyGoal,
-    coverage: derived.coverage,
-    activeGoals: data.goals.length,
-  });
 
   return (
     <div className="fade-up space-y-6">
@@ -227,30 +216,7 @@ export default function Home() {
         </button>
       </header>
 
-      {/* Prochaine action utile : une seule à la fois, choisie par les chiffres */}
-      <section
-        data-tour="next-action"
-        className="card flex flex-wrap items-center gap-4 p-4 sm:p-5"
-        aria-labelledby="next-action-title"
-      >
-        <IconCircle icon={Target} tone="accent" size={44} />
-        <div className="min-w-0 flex-1">
-          <p className="label">Ta prochaine action</p>
-          <p id="next-action-title" className="mt-0.5 text-[16px] font-semibold">
-            {action.title}
-          </p>
-          <p className="mt-1 max-w-[60ch] text-[13px] leading-relaxed text-mist">
-            {action.body}
-          </p>
-        </div>
-        <Link
-          to={action.cta.to}
-          className="btn btn-secondary h-11 w-full shrink-0 justify-center text-[13px] sm:w-auto"
-        >
-          {action.cta.label}
-          <ArrowRight size={15} strokeWidth={2} />
-        </Link>
-      </section>
+      <GameCard stats={game} userId={userId} onAddTransaction={() => openTx('expense')} />
 
       <div className="grid gap-4 lg:grid-cols-3">
         {/* Carte vedette */}
@@ -378,6 +344,8 @@ export default function Home() {
           </Link>
         </section>
       </div>
+
+      <DebtBossCard bosses={game.debtBosses} currency={currency} />
 
       {/* Chiffres du mois */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

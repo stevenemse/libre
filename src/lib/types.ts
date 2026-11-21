@@ -173,6 +173,7 @@ export interface UserChallenge {
   started_on: string;
   completed: boolean;
   check_ins: number;
+  last_check_in: string | null;
   completed_at: string | null;
 }
 

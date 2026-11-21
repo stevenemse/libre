@@ -1,6 +1,15 @@
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
 import {
+  Award,
   BookOpen,
   Compass,
   House,
@@ -18,6 +27,7 @@ import { Logo, Avatar, cn } from './ui';
 import { useAuth } from '../lib/auth';
 import { useMaintenance, useOnlineStatus, useSaveProfile, useWorkspace } from '../lib/queries';
 import { initials } from '../lib/format';
+import { gameStatsForWorkspace } from '../lib/game';
 import { useTheme } from '../lib/theme';
 import { TransactionSheet } from './TransactionSheet';
 import { Tour } from './Tour';
@@ -65,6 +75,10 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [tourPrompted, setTourPrompted] = useState(false);
   const saveProfile = useSaveProfile(userId);
   const { theme, toggle: toggleTheme } = useTheme();
+  const game = useMemo(
+    () => (workspace ? gameStatsForWorkspace(workspace) : null),
+    [workspace]
+  );
 
   const openSheet = useCallback((type: TxType = 'expense') => {
     setSheetType(type);
@@ -133,6 +147,16 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <Plus size={16} strokeWidth={2} aria-hidden="true" />
                 Ajouter
               </button>
+              {game ? (
+                <Link
+                  to="/"
+                  className="hidden h-11 items-center gap-1.5 rounded-full border border-line px-3 text-[12px] font-semibold text-mist transition-colors hover:text-snow sm:flex"
+                  aria-label={`Niveau ${game.level.index}, ${game.level.name}`}
+                >
+                  <Award size={14} strokeWidth={1.75} className="text-accent-text" />
+                  Niv. {game.level.index}
+                </Link>
+              ) : null}
               <button
                 type="button"
                 onClick={toggleTheme}

@@ -2,13 +2,14 @@ import { useMemo, useState } from 'react';
 import { BookOpen, Bookmark, Check, Flame, Search } from 'lucide-react';
 import { useAuth } from '../lib/auth';
 import {
-  useCompleteChallenge,
+  useCheckInChallenge,
   useStartChallenge,
   useDeleteChallenge,
   useSaveTipProgress,
   useWorkspace,
 } from '../lib/queries';
 import { EmptyState, ProgressBar, Sheet, cn } from '../components/ui';
+import { todayISO } from '../lib/format';
 import type { Challenge, Tip, TipCategory, UserChallenge } from '../lib/types';
 
 const CATEGORIES: Array<TipCategory | 'Tout'> = [
@@ -26,7 +27,7 @@ export default function Tips() {
   const { data } = useWorkspace(userId);
   const saveProgress = useSaveTipProgress(userId);
   const startChallenge = useStartChallenge(userId);
-  const completeChallenge = useCompleteChallenge(userId);
+  const checkInChallenge = useCheckInChallenge(userId);
   const deleteChallenge = useDeleteChallenge(userId);
 
   const [category, setCategory] = useState<(typeof CATEGORIES)[number]>('Tout');
@@ -62,11 +63,9 @@ export default function Tips() {
     if (row.challenge_id) activeByChallenge.set(row.challenge_id, row);
   }
 
-  const dayOf = (row: UserChallenge, challenge: Challenge) => {
-    const started = new Date(`${row.started_on}T00:00:00`);
-    const elapsed = Math.floor((Date.now() - started.getTime()) / 86_400_000) + 1;
-    return Math.max(1, Math.min(challenge.duration_days, elapsed));
-  };
+  const today = todayISO();
+  const progressOf = (row: UserChallenge, challenge: Challenge) =>
+    Math.min(1, Math.max(0, row.check_ins) / Math.max(1, challenge.duration_days));
 
   const openTipDetail = (tip: Tip) => {
     setOpenTip(tip);
@@ -102,7 +101,8 @@ export default function Tips() {
           <ul className="grid gap-3 sm:grid-cols-2">
             {data.challenges.map((challenge) => {
               const active = challenge.id ? activeByChallenge.get(challenge.id) : undefined;
-              const day = active ? dayOf(active, challenge) : 0;
+              const progress = active ? progressOf(active, challenge) : 0;
+              const checkedIn = active?.last_check_in === today;
               return (
                 <li key={challenge.id} className="card flex flex-col p-4 sm:p-5">
                   <div className="flex items-start justify-between gap-3">
@@ -110,7 +110,7 @@ export default function Tips() {
                       <p className="text-[15px] font-semibold">{challenge.title}</p>
                       <p className="mt-1 text-[12px] text-mist">
                         {challenge.duration_days} jours
-                        {active?.completed ? ' · terminé' : active ? ` · jour ${day}` : ''}
+                        {active?.completed ? ' · terminé' : ''}
                       </p>
                     </div>
                     <Flame
@@ -130,27 +130,52 @@ export default function Tips() {
                   {active ? (
                     <div className="mt-auto pt-4">
                       <ProgressBar
-                        value={day / Math.max(1, challenge.duration_days)}
+                        value={progress}
                         height={8}
                         ariaLabel={`Progression du défi ${challenge.title}`}
                       />
+                      <div className="mt-2 flex items-center justify-between gap-2 text-[12px] text-mist">
+                        <span>
+                          {active.check_ins} / {challenge.duration_days} jours validés
+                        </span>
+                        {active.completed ? null : (
+                          <span className="font-semibold text-accent-text">+20 XP / jour validé</span>
+                        )}
+                      </div>
                       <div className="mt-3 flex flex-wrap gap-2">
-                        <button
-                          type="button"
-                          className="btn btn-secondary h-11 flex-1 text-[12px]"
-                          onClick={() =>
-                            completeChallenge.mutate({ id: active.id, done: !active.completed })
-                          }
-                        >
-                          {active.completed ? 'Reprendre' : 'Marquer terminé'}
-                        </button>
+                        {active.completed ? (
+                          <span className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-full bg-accent/10 px-4 text-[12px] font-semibold text-accent-text">
+                            <Check size={15} strokeWidth={2} />
+                            Défi terminé
+                          </span>
+                        ) : checkedIn ? (
+                          <span className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-full bg-accent/10 px-4 text-[12px] font-semibold text-accent-text">
+                            <Check size={15} strokeWidth={2} />
+                            Pointé aujourd’hui
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            className="btn btn-primary h-11 flex-1 text-[12px]"
+                            disabled={checkInChallenge.isPending}
+                            onClick={() =>
+                              checkInChallenge.mutate({
+                                id: active.id,
+                                checkIns: active.check_ins,
+                                durationDays: challenge.duration_days,
+                              })
+                            }
+                          >
+                            Je l’ai fait aujourd’hui
+                          </button>
+                        )}
                         <button
                           type="button"
                           className="btn btn-ghost h-11 text-[12px] text-mist"
                           onClick={() => deleteChallenge.mutate(active.id)}
-                          aria-label={`Abandonner le défi ${challenge.title}`}
+                          aria-label={`${active.completed ? 'Retirer' : 'Abandonner'} le défi ${challenge.title}`}
                         >
-                          Abandonner
+                          {active.completed ? 'Retirer' : 'Abandonner'}
                         </button>
                       </div>
                     </div>

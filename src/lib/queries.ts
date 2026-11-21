@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from './supabase';
 import { flushPendingTransactions, pendingCount, queueTransaction, isOnline } from './offline';
 import { findDebtByCounterparty, mergeDebtValues } from './debts';
+import { todayISO } from './format';
 import type {
   AdminAccount,
   AdminHealth,
@@ -562,19 +563,21 @@ export function useAddAsset(userId: string | undefined) {
   });
 }
 
-export function useSaveDebt(userId: string | undefined) {
-  const invalidate = useInvalidate();
-  return useMutation({
-    mutationFn: async (input: {
-      id?: string;
-      title: string;
-      direction: Debt['direction'];
-      counterparty: string | null;
-      balance: number;
-      monthly_payment: number;
-      interest_rate: number | null;
-      due_date: string | null;
-    }) => {
+type SaveDebtInput = {
+  id?: string;
+  title: string;
+  direction: Debt['direction'];
+  counterparty: string | null;
+  balance: number;
+  monthly_payment: number;
+  interest_rate: number | null;
+  due_date: string | null;
+};
+
+/** Options pures de la mutation, testables sans React. */
+export function saveDebtMutationOptions(userId: string | undefined) {
+  return {
+    mutationFn: async (input: SaveDebtInput) => {
       if (!userId) throw new Error('Session expirée');
       const { id, ...payload } = input;
       const counterparty = payload.counterparty?.trim() || null;
@@ -617,6 +620,13 @@ export function useSaveDebt(userId: string | undefined) {
       if (error) throw new Error(error.message);
       return { merged: false, id: id ?? null };
     },
+  };
+}
+
+export function useSaveDebt(userId: string | undefined) {
+  const invalidate = useInvalidate();
+  return useMutation({
+    ...saveDebtMutationOptions(userId),
     onSuccess: () => invalidate(userId),
   });
 }
@@ -797,6 +807,35 @@ export function useCompleteChallenge(userId: string | undefined) {
       const { error } = await supabase
         .from('user_challenges')
         .update({ completed: done, completed_at: done ? new Date().toISOString() : null })
+        .eq('id', id);
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => invalidate(userId),
+  });
+}
+
+export function useCheckInChallenge(userId: string | undefined) {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: async ({
+      id,
+      checkIns,
+      durationDays,
+    }: {
+      id: string;
+      checkIns: number;
+      durationDays: number;
+    }) => {
+      const next = Math.max(0, checkIns) + 1;
+      const completed = next >= Math.max(1, durationDays);
+      const { error } = await supabase
+        .from('user_challenges')
+        .update({
+          check_ins: next,
+          last_check_in: todayISO(),
+          completed,
+          completed_at: completed ? new Date().toISOString() : null,
+        })
         .eq('id', id);
       if (error) throw new Error(error.message);
     },

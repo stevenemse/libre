@@ -25,8 +25,8 @@ export const TOUR_STEPS: TourStep[] = [
     id: 'next-action',
     route: '/',
     target: '[data-tour="next-action"]',
-    title: 'Ta prochaine action',
-    body: 'À chaque ouverture, Libre te propose une seule chose à faire, choisie à partir de tes chiffres. Pas de liste interminable : la priorité du moment.',
+    title: 'Ton parcours',
+    body: 'Ton niveau, ta série et la quête du jour. Chaque action réelle fait avancer ton parcours, et les jalons financiers débloquent les rangs suivants.',
   },
   {
     id: 'month-card',
